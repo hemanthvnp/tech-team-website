@@ -1,0 +1,591 @@
+---
+// src/components/Crew.astro
+// The crew as this year's series of trading cards: heads as the large
+// cards, deputies below, and a blank card at the end for whoever joins
+// next. Earlier crews live on as hologram busts over a projector, one
+// year at a time.
+//
+// Two skins, switchable from the header while the design is being
+// decided: Homage (the cards and the projector) and Light (the same
+// content as plain portraits). ?skin=light opens on Light. The switch is
+// for the showcase; remove it once a skin is chosen.
+import Section from './Section.astro';
+import CrewCard from './CrewCard.astro';
+import CrewHolo from './CrewHolo.astro';
+import { heads, deputies, legacy, series, isSample } from '../data/crew';
+
+const pad = (n: number) => String(n).padStart(2, '0');
+---
+
+<Section id="crew" label="Crew">
+  <div class="crew" data-crew data-skin="homage">
+    <script is:inline>
+      // Before paint: open on the skin in the URL, or this browser's last pick
+      (function (el) {
+        var skin = new URLSearchParams(location.search).get('skin');
+        try { skin = skin || localStorage.getItem('crew-skin'); } catch (e) {}
+        if (skin === 'light' || skin === 'homage') el.dataset.skin = skin;
+        el.classList.add('is-live');
+      })(document.currentScript.parentElement);
+    </script>
+
+    <header class="crew__head">
+      <h2 class="crew__heading">Crew</h2>
+      <div class="crew__notes">
+        {isSample && <p class="crew__note">Sample crew. Replace them in src/data/crew.ts</p>}
+        <p class="crew__note crew__note--flip">Tap a card to turn it over</p>
+      </div>
+      <div class="crew__skins" role="group" aria-labelledby="crew-skin-label">
+        <span class="crew__skins-label" id="crew-skin-label">Skin</span>
+        <span class="crew__skin-set">
+          <button class="crew__skin" type="button" data-skin-pick="homage" aria-pressed="true">Homage</button>
+          <button class="crew__skin" type="button" data-skin-pick="light" aria-pressed="false">Light</button>
+        </span>
+      </div>
+    </header>
+
+    <div class="crew__body">
+      <div class="crew__tier crew__tier--heads">
+        <h3 class="crew__tier-title">Heads</h3>
+        <div class="crew__row" data-deal>
+          <ol class="crew__cards" role="list">
+            {heads.map((m, i) => (
+              <CrewCard member={m} number={pad(i + 1)} series={series} tier="head" index={i} />
+            ))}
+          </ol>
+        </div>
+      </div>
+
+      <div class="crew__tier crew__tier--deputies">
+        <h3 class="crew__tier-title">Deputies</h3>
+        <div class="crew__row" data-deal>
+          <ol class="crew__cards" role="list">
+            {deputies.map((m, i) => (
+              <CrewCard member={m} number={pad(heads.length + i + 1)} series={series} tier="deputy" index={i} />
+            ))}
+          </ol>
+          <CrewCard blank="#join" tier="deputy" index={deputies.length} />
+        </div>
+      </div>
+
+      <div class="archive" data-archive>
+        <div class="archive__head">
+          <h3 class="archive__title">Past crews</h3>
+          <div class="archive__years" role="tablist" aria-label="Past crews by year">
+            {legacy.map((c, i) => (
+              <button
+                class="archive__year"
+                type="button"
+                role="tab"
+                id={`crew-year-${c.year}`}
+                aria-controls={`crew-past-${c.year}`}
+                aria-selected={i === 0 ? 'true' : 'false'}
+                tabindex={i === 0 ? 0 : -1}
+              >
+                {c.year}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div class="archive__stage">
+          <span class="archive__beam" aria-hidden="true"></span>
+          {legacy.map((c, i) => (
+            <div
+              class="archive__panel"
+              role="tabpanel"
+              id={`crew-past-${c.year}`}
+              aria-labelledby={`crew-year-${c.year}`}
+              data-current={i === 0 ? '' : undefined}
+            >
+              <p class="archive__caption">
+                <span class="archive__caption--homage">Recording · The {c.year} crew</span>
+                <span class="archive__caption--light">The {c.year} crew</span>
+              </p>
+              <div class="crew__row archive__row" data-deal>
+                <ol class="crew__cards" role="list">
+                  {c.members.map((m, k) => (
+                    <CrewHolo member={m} index={k} />
+                  ))}
+                </ol>
+              </div>
+            </div>
+          ))}
+          <span class="archive__emitter" aria-hidden="true"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</Section>
+
+<style>
+  .crew {
+    --yellow: #feda4a;
+    --yellow-dim: rgba(254, 218, 74, 0.72);
+    --blue: #4bd5ee;
+    --core: #e9fbff;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    box-sizing: border-box;
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: clamp(4.5rem, 12vh, 7.5rem) clamp(1rem, 4vw, 2.5rem) clamp(4rem, 10vh, 6.5rem);
+  }
+
+  /* ---------- Heading and the skin switch ---------- */
+
+  .crew__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 1.5rem;
+    row-gap: 0.75rem;
+    margin-bottom: clamp(2.75rem, 7vh, 4.5rem);
+  }
+
+  .crew__heading {
+    margin: 0;
+    color: var(--yellow);
+    font-family: 'Star Jedi', 'Anton', sans-serif;
+    font-weight: 400;
+    font-size: clamp(2.25rem, 7vw, 4.5rem);
+    line-height: 1;
+    letter-spacing: 0.04em;
+    text-transform: lowercase; /* Star Jedi's clean letters; see global.css */
+  }
+
+  .crew__notes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .crew__note {
+    margin: 0;
+    color: rgba(254, 218, 74, 0.6);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  /* Only the cards turn over; Light shows both sides at once */
+  .crew[data-skin='light'] .crew__note--flip { display: none; }
+
+  .crew__skins {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin-left: auto;
+    align-self: center;
+  }
+
+  .crew__skins-label {
+    color: rgba(254, 218, 74, 0.6);
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .crew__skin-set {
+    display: flex;
+    padding: 2px;
+    border: 1px solid rgba(254, 218, 74, 0.35);
+    border-radius: 999px;
+  }
+
+  .crew__skin {
+    padding: 0.42rem 0.9rem;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--yellow-dim);
+    font-family: 'News Cycle', system-ui, sans-serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color 0.2s, background-color 0.2s;
+  }
+
+  .crew__skin:hover { color: var(--yellow); }
+
+  .crew__skin[aria-pressed='true'] {
+    background: var(--yellow);
+    color: #000;
+    cursor: default;
+  }
+
+  /* ---------- Rows of cards ---------- */
+
+  .crew__body { container-type: inline-size; }
+
+  .crew__tier,
+  .archive {
+    --gap: clamp(0.75rem, 2.4cqw, 1.75rem);
+  }
+
+  /* Narrow: heads two across, everything else three across */
+  .crew__tier--heads { --card-w: min(15rem, (100cqw - var(--gap)) / 2); }
+  .crew__tier--deputies,
+  .archive { --card-w: min(10.5rem, (100cqw - 2 * var(--gap)) / 3); }
+
+  /* Wide: every head on one row, deputies and the blank card on the next */
+  @container (min-width: 50rem) {
+    .crew__tier--heads { --card-w: min(15rem, (100cqw - 3 * var(--gap)) / 4); }
+    .crew__tier--deputies,
+    .archive { --card-w: min(9.5rem, (100cqw - 5 * var(--gap)) / 6); }
+  }
+
+  .crew__tier + .crew__tier { margin-top: clamp(3rem, 8vh, 5rem); }
+
+  .crew__tier-title {
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+    margin: 0 0 clamp(1.5rem, 4vh, 2.25rem);
+    color: var(--yellow-dim);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+
+  .crew__tier-title::before,
+  .crew__tier-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(254, 218, 74, 0.18);
+  }
+
+  .crew__row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+    gap: clamp(1.5rem, 4vw, 2.5rem) var(--gap);
+  }
+
+  /* The list keeps its semantics; its cards join the row's flow */
+  .crew__cards {
+    display: contents;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* ---------- Past crews ---------- */
+
+  .archive { margin-top: clamp(5.5rem, 14vh, 9rem); }
+
+  .archive__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem 2rem;
+  }
+
+  .archive__title {
+    margin: 0;
+    color: var(--yellow);
+    font-family: 'Star Jedi', 'Anton', sans-serif;
+    font-weight: 400;
+    font-size: clamp(1.6rem, 4.5vw, 2.6rem);
+    line-height: 1;
+    letter-spacing: 0.04em;
+    text-transform: lowercase;
+  }
+
+  .archive__years {
+    display: flex;
+    gap: 0.35rem;
+  }
+
+  .archive__year {
+    position: relative;
+    padding: 0.45rem 0.95rem;
+    border: 1px solid rgba(254, 218, 74, 0.3);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--yellow-dim);
+    font-family: 'News Cycle', system-ui, sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s, background-color 0.2s, box-shadow 0.3s;
+  }
+
+  .archive__year:hover { color: var(--yellow); border-color: rgba(254, 218, 74, 0.6); }
+
+  .archive__year[aria-selected='true'] {
+    color: #000;
+    background: var(--yellow);
+    border-color: var(--yellow);
+    cursor: default;
+  }
+
+  /* 44px of target */
+  .archive__year::before {
+    content: '';
+    position: absolute;
+    inset: -0.4rem -0.15rem;
+  }
+
+  .archive__stage {
+    position: relative;
+    margin-top: clamp(1.75rem, 5vh, 3rem);
+  }
+
+  .archive__caption {
+    margin: 0 0 clamp(1.5rem, 4vh, 2.25rem);
+    color: var(--yellow-dim);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .archive__panel + .archive__panel { margin-top: 3rem; }
+
+  /* One year at a time once the tabs work; without JS every year shows */
+  .crew.is-live .archive__panel:not([data-current]) { display: none; }
+  .crew.is-live .archive__panel + .archive__panel { margin-top: 0; }
+
+  /* Each skin's own words */
+  .crew[data-skin='homage'] .archive__caption--light,
+  .crew[data-skin='light'] .archive__caption--homage { display: none; }
+
+  /* Busts stand closer than cards and need room under them for names */
+  .archive__row { row-gap: clamp(2rem, 5vh, 3rem); }
+
+  .archive__emitter { display: none; }
+
+  /* ---------- Homage: the projector ---------- */
+
+  .crew[data-skin='homage'] .archive__stage {
+    padding: clamp(1.75rem, 5vh, 2.75rem) 0 clamp(3.5rem, 9vh, 5rem);
+  }
+
+  /* The beam, spreading up from the emitter behind the holograms. The
+     blur sits on the wrapper so it softens the clipped edges too. */
+  .archive__beam { display: none; }
+
+  .crew[data-skin='homage'] .archive__beam {
+    position: absolute;
+    left: 50%;
+    bottom: 0.9rem;
+    display: block;
+    width: min(100%, 64rem);
+    height: calc(100% - 0.9rem);
+    translate: -50% 0;
+    filter: blur(10px);
+    pointer-events: none;
+  }
+
+  .crew[data-skin='homage'] .archive__beam::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(75, 213, 238, 0.3), rgba(75, 213, 238, 0.07) 50%, transparent 90%);
+    clip-path: polygon(31% 100%, 69% 100%, 100% 0, 0 0);
+  }
+
+  .crew[data-skin='homage'] .archive__caption { color: rgba(75, 213, 238, 0.9); }
+
+  .crew[data-skin='homage'] .archive__emitter {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    display: block;
+    width: min(24rem, 60%);
+    height: 1.8rem;
+    translate: -50% 0;
+  }
+
+  /* The lit lens */
+  .crew[data-skin='homage'] .archive__emitter::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, var(--core), rgba(75, 213, 238, 0.85) 28%, rgba(75, 213, 238, 0.18) 68%, transparent);
+  }
+
+  /* The housing it sits in */
+  .crew[data-skin='homage'] .archive__emitter::before {
+    content: '';
+    position: absolute;
+    inset: 45% 8% -45%;
+    border-radius: 50%;
+    background: linear-gradient(to bottom, #3a4252, #0b0e14 70%);
+    box-shadow: 0 0.5rem 1.2rem rgba(0, 0, 0, 0.7);
+  }
+
+  .crew[data-skin='homage'] .archive__year[aria-selected='true'] {
+    color: #001417;
+    background: var(--blue);
+    border-color: var(--blue);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .crew[data-skin='homage'] .archive__emitter::after {
+      animation: archive-hum 3.2s ease-in-out infinite;
+    }
+
+    /* Changing years drops the signal to a line, then the next crew
+       resolves up out of it */
+    .crew[data-skin='homage'] .archive__panel {
+      transform-origin: 50% 100%;
+      transition:
+        transform 0.2s ease-in,
+        opacity 0.2s ease-in,
+        filter 0.2s ease-in;
+    }
+
+    .crew[data-skin='homage'] .archive__stage.is-tuning .archive__panel[data-current] {
+      transform: scaleY(0.02);
+      opacity: 0.5;
+      filter: brightness(2.4);
+    }
+
+    .crew[data-skin='homage'].is-live .archive__stage.is-tuned .archive__panel[data-current] {
+      animation: archive-in 0.6s var(--ease-out);
+    }
+  }
+
+  @keyframes archive-hum {
+    0%, 100% { opacity: 0.85; }
+    50% { opacity: 1; }
+  }
+
+  @keyframes archive-in {
+    from { transform: scaleY(0.02); opacity: 0.4; filter: brightness(2.4); }
+    55% { opacity: 1; }
+    to { transform: none; filter: none; }
+  }
+</style>
+
+<script>
+  function initCrew() {
+    const crew = document.querySelector<HTMLElement>('[data-crew]');
+    if (!crew || crew.dataset.ready === 'true') return;
+    crew.dataset.ready = 'true';
+
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const isHomage = () => crew.dataset.skin === 'homage';
+
+    /* ---- Turning cards over ---- */
+    const flip = (card: HTMLElement, on = !card.classList.contains('is-flipped')) => {
+      card.classList.toggle('is-flipped', on);
+      card.querySelector('[data-card-flip]')?.setAttribute('aria-pressed', String(on));
+      const back = card.querySelector<HTMLElement>('[data-card-back]');
+      // Under Homage the back is only there while it faces up
+      if (back) back.inert = isHomage() && !on;
+    };
+
+    /* ---- Skin switch (showcase only) ---- */
+    const picks = Array.from(crew.querySelectorAll<HTMLButtonElement>('[data-skin-pick]'));
+    const cards = Array.from(crew.querySelectorAll<HTMLElement>('[data-flippable]'));
+
+    const setSkin = (skin: string, remember: boolean) => {
+      crew.dataset.skin = skin;
+      for (const b of picks) b.setAttribute('aria-pressed', String(b.dataset.skinPick === skin));
+      for (const c of cards) flip(c, false);
+      if (!remember) return;
+      try {
+        localStorage.setItem('crew-skin', skin);
+      } catch {}
+      const url = new URL(window.location.href);
+      if (skin === 'light') url.searchParams.set('skin', 'light');
+      else url.searchParams.delete('skin');
+      history.replaceState(history.state, '', url);
+    };
+
+    setSkin(crew.dataset.skin === 'light' ? 'light' : 'homage', false);
+    for (const b of picks) {
+      b.addEventListener('click', () => setSkin(b.dataset.skinPick as string, true));
+    }
+
+    /* ---- Turn a card over: the corner button for keyboards, anywhere on
+       the card for pointers ---- */
+    crew.addEventListener('click', (e) => {
+      const target = e.target as Element;
+      if (target.closest('a')) return;
+      const card = target.closest<HTMLElement>('[data-flippable]');
+      if (card && isHomage()) flip(card);
+    });
+
+    /* ---- Deal each row in as it scrolls into view ---- */
+    if (!still && 'IntersectionObserver' in window) {
+      crew.classList.add('is-dealing');
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const en of entries) {
+            if (!en.isIntersecting) continue;
+            en.target.classList.add('is-dealt');
+            io.unobserve(en.target);
+          }
+        },
+        // The moment any of a row shows, so there's never a visible gap
+        // where cards are about to be
+        { threshold: 0 },
+      );
+      for (const row of crew.querySelectorAll('[data-deal]')) io.observe(row);
+    }
+
+    /* ---- Past crews, one year at a time ---- */
+    const tabs = Array.from(crew.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    const panels = tabs.map((t) => document.getElementById(t.getAttribute('aria-controls') as string) as HTMLElement);
+    const stage = crew.querySelector<HTMLElement>('.archive__stage') as HTMLElement;
+    let tuning = 0;
+
+    const select = (i: number) => {
+      tabs.forEach((t, k) => {
+        t.setAttribute('aria-selected', String(k === i));
+        t.tabIndex = k === i ? 0 : -1;
+      });
+      const show = () => {
+        panels.forEach((p, k) => p.toggleAttribute('data-current', k === i));
+        // A year dealt off screen is still dealt when it comes up
+        panels[i].querySelector('[data-deal]')?.classList.add('is-dealt');
+      };
+      window.clearTimeout(tuning);
+      if (still || !isHomage()) {
+        stage.classList.remove('is-tuning', 'is-tuned');
+        show();
+        return;
+      }
+      stage.classList.remove('is-tuned');
+      stage.classList.add('is-tuning');
+      tuning = window.setTimeout(() => {
+        show();
+        stage.classList.remove('is-tuning');
+        stage.classList.add('is-tuned');
+      }, 200);
+    };
+
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => {
+        if (t.getAttribute('aria-selected') !== 'true') select(i);
+      });
+      t.addEventListener('keydown', (e) => {
+        const last = tabs.length - 1;
+        const to =
+          e.key === 'ArrowRight' ? (i === last ? 0 : i + 1)
+          : e.key === 'ArrowLeft' ? (i === 0 ? last : i - 1)
+          : e.key === 'Home' ? 0
+          : e.key === 'End' ? last
+          : -1;
+        if (to < 0) return;
+        e.preventDefault();
+        tabs[to].focus();
+        select(to);
+      });
+    });
+  }
+
+  initCrew();
+  document.addEventListener('astro:page-load', initCrew);
+</script>

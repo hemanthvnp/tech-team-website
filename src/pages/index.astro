@@ -3,6 +3,7 @@ import SiteLayout from '../layouts/SiteLayout.astro';
 import TechTeamHero from '../components/TechTeamHero.astro';
 import Section from '../components/Section.astro';
 import Timeline from '../components/Timeline.astro';
+import Crew from '../components/Crew.astro';
 ---
 
 <SiteLayout title="Tech Team - Star Wars Hero">
@@ -10,15 +11,10 @@ import Timeline from '../components/Timeline.astro';
 
 	<Timeline />
 
+	<Crew />
+
 	<!-- Placeholders, so the navbar has somewhere to go. Any <Section> with a
 	     label joins the navbar by itself; swap these for the real sections. -->
-	<Section id="crew" label="Crew">
-		<div class="placeholder">
-			<h2 class="placeholder__title">Crew</h2>
-			<p class="placeholder__note">Placeholder. Replace this block in src/pages/index.astro</p>
-		</div>
-	</Section>
-
 	<Section id="projects" label="Projects">
 		<div class="placeholder">
 			<h2 class="placeholder__title">Projects</h2>

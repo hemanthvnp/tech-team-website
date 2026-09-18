@@ -104,13 +104,16 @@ const {
   /* Faces (News Cycle, Anton, Star Jedi) are loaded site-wide by SiteLayout. */
 
   .sw {
-    /* ---- Timing. The title lands right as the story finishes. ----
+    /* ---- Timing. The title rides in about a line behind the story's last
+       line and keeps pace with it up the screen, then comes forward as the
+       story dissolves. The title's delay sets the gap; its duration sets
+       the pace, so change the two together.
        --speed re-times the whole sequence at once; raise it to go faster. */
     --speed: 1.5;
     --t-crawl-delay: calc(0.8s / var(--speed));
     --t-crawl: calc(38s / var(--speed));
-    --t-title-delay: calc(22s / var(--speed));
-    --t-title: calc(24s / var(--speed));
+    --t-title-delay: calc(9s / var(--speed));
+    --t-title: calc(29s / var(--speed));
     /* Inside the title's own timeline: it travels until 70%, flattens by 92%. */
 
     /* ---- Geometry. Both planes share a tilt and an eye point; only the
@@ -169,6 +172,15 @@ const {
     overflow: hidden;
     background: #000;
     isolation: isolate;
+  }
+
+  /* Tall screens: the title covers ground faster than the story does, so it
+     rides longer to hold the same gap behind it */
+  @media (max-aspect-ratio: 3/4) {
+    .sw {
+      --t-title-delay: calc(7.5s / var(--speed));
+      --t-title: calc(36s / var(--speed));
+    }
   }
 
   .sw__stars {
@@ -236,6 +248,18 @@ const {
 
   .sw.is-playing .sw__crawl {
     animation: sw-crawl var(--t-crawl) linear var(--t-crawl-delay) both;
+  }
+
+  /* The hand-off. With the title riding right behind the story, the story's
+     tail is still up where the title lands, so the story dissolves just
+     before the title comes forward. On wide screens it is already deep in
+     the haze by then; on tall ones this clears the landing spot. */
+  .sw.is-playing .sw__viewport {
+    animation: sw-story-out calc(var(--t-title) * 0.1) ease-in calc(var(--t-title-delay) + var(--t-title) * 0.58) both;
+  }
+
+  @keyframes sw-story-out {
+    to { opacity: 0; }
   }
 
   /* Opacity is pinned at 1 the whole way. The story leaves by receding, not

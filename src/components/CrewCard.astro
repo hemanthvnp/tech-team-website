@@ -1,0 +1,563 @@
+---
+// src/components/CrewCard.astro
+// One of the current crew as a 1977-style trading card: the photo in a
+// black frame, TECH TEAM running down the side where the originals ran
+// the film's logo, and the name in red on a yellow plate with the role
+// underneath. The card turns over to a printed back.
+//
+// `blank` draws the card still to be filled: an empty photo slot and
+// "Your name here", the whole card a link to joining.
+//
+// Under the Light skin (see Crew.astro) the same content is set plainly:
+// a portrait, the name and role, the back's line underneath.
+import type { CrewMember } from '../data/crew';
+
+interface Props {
+  member?: CrewMember;
+  /** Printed on the back, e.g. "04" */
+  number?: string;
+  series?: string;
+  tier: 'head' | 'deputy';
+  /** Place in its row: staggers the deal and sets the card's lean */
+  index: number;
+  /** The empty card at the end of the series, linking here */
+  blank?: string;
+}
+
+const { number = '', series = '', tier, index, blank } = Astro.props;
+const member: CrewMember = Astro.props.member ?? { name: 'Your name here', role: 'Join the crew' };
+
+const Root = blank ? 'div' : 'li';
+const Body = blank ? 'a' : 'article';
+const Box = blank ? 'span' : 'div';
+const Name = blank ? 'span' : 'h4';
+
+// Skies behind the stand-in silhouette until a photo arrives, one per
+// planet, so a row of empty slots doesn't read as one repeated tile
+const skies = [
+  ['#e7b56d', '#8a4722'], // Tatooine
+  ['#d9e8ef', '#56768e'], // Hoth
+  ['#86a14f', '#1b2c14'], // Endor
+  ['#f4a86a', '#9b3a2a'], // Bespin
+  ['#8c80e3', '#1c1842'], // Coruscant
+  ['#58c2cf', '#0c4350'], // Scarif
+  ['#f0703a', '#3d0e07'], // Mustafar
+  ['#9aa78a', '#28311f'], // Dagobah
+];
+const seed = [...member.name].reduce((n, c) => n + c.charCodeAt(0), 0);
+const [skyA, skyB] = skies[seed % skies.length];
+
+// Dealt by hand, so no two cards sit quite straight
+const leans = [-2.2, 1.5, -0.8, 2, -1.6, 0.9, -1.3, 1.8];
+const lean = leans[index % leans.length];
+---
+
+<Root
+  class:list={['card', `card--${tier}`, { 'card--blank': blank }]}
+  style={`--i: ${index}; --lean: ${lean}deg; --sky-a: ${skyA}; --sky-b: ${skyB}`}
+  data-flippable={blank ? undefined : ''}
+>
+  <Body class="card__body" href={blank} aria-label={blank ? 'Your card: join the crew' : undefined}>
+    <Box class="card__inner">
+      <Box class="card__face card__front">
+        <Box class="card__photo">
+          {member.photo ? (
+            <img src={member.photo} alt="" loading="lazy" decoding="async" />
+          ) : (
+            <svg
+              class="card__stand-in"
+              viewBox="0 0 100 110"
+              preserveAspectRatio="xMidYMax slice"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M50 22C40.5 22 34 29.5 34 40c0 7.5 3 13.5 7 17v6c-11 3-24 7-28.5 15-3 5-4 14-4 32h83c0-18-1-27-4-32-4.5-8-17.5-12-28.5-15v-6c4-3.5 7-9.5 7-17 0-10.5-6.5-18-16-18Z" />
+            </svg>
+          )}
+        </Box>
+        <span class="card__logo" aria-hidden="true"><span>TECH TEAM</span></span>
+        <Box class="card__band">
+          <Name class="card__name">{member.name}</Name>
+          <span class="card__role">{member.role}</span>
+        </Box>
+      </Box>
+
+      {!blank && (
+      <div class="card__face card__back" data-card-back>
+        <p class="card__back-top" aria-hidden="true">
+          <span class="card__back-no">{number}</span>
+          <span class="card__back-id">
+            <span class="card__back-name">{member.name}</span>
+            <span class="card__back-role">{member.role}</span>
+          </span>
+        </p>
+        {member.focus && <p class="card__focus">{member.focus}</p>}
+        {member.links && member.links.length > 0 && (
+          <ul class="card__links">
+            {member.links.map((l) => (
+              <li><a href={l.href}>{l.label}</a></li>
+            ))}
+          </ul>
+        )}
+        <p class="card__back-foot" aria-hidden="true">
+          <span class="card__back-logo">tech team</span>
+          <span class="card__back-series">Series {series}</span>
+        </p>
+      </div>
+      )}
+    </Box>
+
+    {!blank && (
+      <button class="card__flip" type="button" aria-pressed="false" data-card-flip>
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M4.6 10.2a7.5 7.5 0 0 1 13.2-3.9" />
+          <path d="M18.4 3.2v3.6h-3.6" />
+          <path d="M19.4 13.8a7.5 7.5 0 0 1-13.2 3.9" />
+          <path d="M5.6 20.8v-3.6h3.6" />
+        </svg>
+        <span class="card__sr">Turn over {member.name}'s card</span>
+      </button>
+    )}
+  </Body>
+</Root>
+
+<style>
+  /* Shared structure, and the Light skin as it stands. The Homage skin's
+     card is layered on below, under [data-skin='homage']. */
+
+  .card {
+    --frame: #0e0e10;
+    --plate: #feda4a;
+    --name-ink: #b3201a;
+    --ink: #17171a;
+    --logo-fill: #e9fbff;
+    --logo-edge: #2f86dc;
+    --board: #cdc7b8;
+    --board-ink: #1f3a82;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+    container: card / inline-size;
+    position: relative;
+    flex: none;
+    width: var(--card-w, 12rem);
+    list-style: none;
+  }
+
+  .card__body {
+    position: relative;
+    display: block;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  /* Block even where the blank card renders them as spans inside its link */
+  .card__inner,
+  .card__face { display: block; }
+
+  .card__photo {
+    position: relative;
+    display: block;
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    border-radius: 2px;
+    background:
+      radial-gradient(90% 55% at 50% 100%, var(--sky-b), transparent 70%),
+      linear-gradient(to bottom, var(--sky-a), var(--sky-b));
+  }
+
+  .card__photo img,
+  .card__stand-in {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .card__stand-in path { fill: #0b0e15; }
+
+  /* The blank card: an empty slot with a dashed outline where a face goes */
+  .card--blank .card__photo {
+    background: none;
+    box-shadow: inset 0 0 0 1px rgba(254, 218, 74, 0.28);
+  }
+
+  .card--blank .card__stand-in path {
+    fill: none;
+    stroke: rgba(254, 218, 74, 0.55);
+    stroke-width: 0.9;
+    stroke-dasharray: 2.4 2;
+  }
+
+  .card__band {
+    display: block;
+    padding-top: 0.85rem;
+  }
+
+  .card__name {
+    display: block;
+    margin: 0;
+    color: #feda4a;
+    font-size: 1.02rem;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-wrap: balance;
+  }
+
+  :global([data-skin='light']) .card--deputy .card__name { font-size: 0.86rem; }
+
+  .card__role {
+    display: block;
+    margin-top: 0.35rem;
+    color: #4bd5ee;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    line-height: 1.3;
+    text-transform: uppercase;
+  }
+
+  .card__logo,
+  .card__flip,
+  .card__back-top,
+  .card__back-foot { display: none; }
+
+  .card__back-top,
+  .card__back-foot { margin: 0; }
+
+  .card__focus {
+    margin: 0.6rem 0 0;
+    color: rgba(254, 218, 74, 0.72);
+    font-size: 0.86rem;
+    line-height: 1.45;
+    text-wrap: pretty;
+  }
+
+  .card__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.9rem;
+    margin: 0.55rem 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .card__links a {
+    color: inherit;
+    text-underline-offset: 0.25em;
+    text-decoration-thickness: 1px;
+  }
+
+  .card__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* ================= Homage: the trading card ================= */
+
+  :global([data-skin='homage']) .card { perspective: 1100px; }
+
+  :global([data-skin='homage']) .card__body {
+    cursor: pointer;
+    transform-style: preserve-3d;
+    transform: translateY(var(--lift, 0)) rotate(var(--lean));
+    transition: transform 0.45s var(--ease-out);
+  }
+
+  /* Picked up: it straightens and lifts off the table */
+  @media (hover: hover) and (pointer: fine) {
+    :global([data-skin='homage']) .card__body:hover {
+      --lift: -0.4rem;
+      --lean: 0deg;
+    }
+  }
+
+  :global([data-skin='homage']) .card__inner {
+    position: relative;
+    aspect-ratio: 5 / 7;
+    transform-style: preserve-3d;
+    transition: transform 0.75s var(--ease-out);
+  }
+
+  :global([data-skin='homage']) .card.is-flipped .card__inner { transform: rotateY(180deg); }
+
+  :global([data-skin='homage']) .card__face {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+    border-radius: 2.6cqi;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    box-shadow:
+      0 0.9rem 1.6rem -0.5rem rgba(0, 0, 0, 0.9),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  }
+
+  /* ---- Front: photo left, the logo down the side, the name plate below ---- */
+
+  :global([data-skin='homage']) .card__front {
+    display: grid;
+    grid-template-columns: 1fr 17cqi;
+    grid-template-rows: 1fr auto;
+    gap: 3.4cqi 2.6cqi;
+    padding: 5.5cqi 3.4cqi 5.5cqi 5.5cqi;
+    background: var(--frame);
+  }
+
+  :global([data-skin='homage']) .card__photo {
+    grid-column: 1;
+    grid-row: 1;
+    min-height: 0;
+    aspect-ratio: auto;
+    border-radius: 0;
+  }
+
+  /* The size is set out here, sideways-free: inside vertical text, cqi
+     would measure the card's height, which the container doesn't track.
+     The letters fill the strip's width and run top to bottom. */
+  :global([data-skin='homage']) .card__logo {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    font-size: 20.5cqi;
+  }
+
+  /* Set sideways, the capitals sit a little toward the photo; this centres
+     their ink in the strip (measured: 40px of ink in a 41px strip) */
+  :global([data-skin='homage']) .card__logo span {
+    position: relative;
+    left: 0.1em;
+    writing-mode: vertical-rl;
+    color: var(--logo-fill);
+    font-family: 'Star Jedi', 'Anton', sans-serif;
+    line-height: 0.8;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    -webkit-text-stroke: 0.11em var(--logo-edge);
+    paint-order: stroke fill;
+  }
+
+  /* Square-cut plate: the name in red, the role small underneath where
+     the originals credited the actor */
+  :global([data-skin='homage']) .card__band {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.9cqi;
+    padding: 2.2cqi 2.6cqi 2.5cqi;
+    background: var(--plate);
+    text-align: center;
+  }
+
+  :global([data-skin='homage']) .card__name {
+    color: var(--name-ink);
+    font-size: max(8.6cqi, 0.74rem);
+    line-height: 1.05;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  :global([data-skin='homage']) .card__role {
+    margin: 0;
+    color: var(--ink);
+    font-size: max(3.9cqi, 0.5rem);
+    letter-spacing: 0.12em;
+  }
+
+  :global([data-skin='homage']) .card--blank .card__stand-in path { stroke: rgba(254, 218, 74, 0.6); }
+
+  /* ---- Back: blue ink on grey board, the way the originals were printed ---- */
+
+  :global([data-skin='homage']) .card__back {
+    display: flex;
+    flex-direction: column;
+    gap: 3cqi;
+    padding: 9cqi 8.5cqi 8cqi;
+    transform: rotateY(180deg);
+    background:
+      radial-gradient(circle, rgba(60, 50, 30, 0.1) 0 0.6px, transparent 1px) 0 0 / 5px 5px,
+      var(--board);
+    color: var(--board-ink);
+    box-shadow:
+      0 0.9rem 1.6rem -0.5rem rgba(0, 0, 0, 0.9),
+      inset 0 0 0 3.2cqi var(--board),
+      inset 0 0 0 3.8cqi var(--board-ink);
+  }
+
+  :global([data-skin='homage']) .card__back-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 3.5cqi;
+    padding: 0 0 3.5cqi;
+    border-bottom: 0.5cqi solid currentColor;
+  }
+
+  :global([data-skin='homage']) .card__back-no {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 15cqi;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--board-ink);
+    color: var(--board);
+    font-family: 'Anton', sans-serif;
+    font-size: 7cqi;
+    font-variant-numeric: tabular-nums;
+  }
+
+  :global([data-skin='homage']) .card__back-id {
+    display: flex;
+    flex-direction: column;
+    gap: 1.4cqi;
+    min-width: 0;
+    padding-top: 0.6cqi;
+  }
+
+  :global([data-skin='homage']) .card__back-name {
+    font-family: 'Anton', sans-serif;
+    font-size: max(8.4cqi, 0.74rem);
+    line-height: 1.05;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    text-wrap: balance;
+  }
+
+  :global([data-skin='homage']) .card__back-role {
+    font-size: max(4.8cqi, 0.56rem);
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  :global([data-skin='homage']) .card__focus {
+    margin-top: 1cqi;
+    color: inherit;
+    font-size: max(7cqi, 0.68rem);
+    line-height: 1.35;
+  }
+
+  :global([data-skin='homage']) .card__links {
+    margin-top: 0;
+    font-size: max(5cqi, 0.58rem);
+  }
+
+  /* The wordmark where the originals printed theirs */
+  :global([data-skin='homage']) .card__back-foot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.6cqi;
+    margin-top: auto;
+    text-align: center;
+  }
+
+  :global([data-skin='homage']) .card__back-logo {
+    font-family: 'Star Jedi', 'Anton', sans-serif;
+    font-size: 10cqi;
+    line-height: 1;
+    letter-spacing: 0.04em;
+  }
+
+  :global([data-skin='homage']) .card__back-series {
+    font-family: 'Anton', sans-serif;
+    font-size: max(4.8cqi, 0.56rem);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+
+  /* Small cards keep the name, the role and the line */
+  @container card (max-width: 8.5rem) {
+    :global([data-skin='homage']) .card__back { padding: 8cqi 7.5cqi; }
+    :global([data-skin='homage']) .card__back-no,
+    :global([data-skin='homage']) .card__back-foot { display: none; }
+  }
+
+  /* ---- Turn over. Nothing is printed on the face: a pointer taps the
+     card anywhere, and this button surfaces only for the keyboard. ---- */
+
+  :global([data-skin='homage']) .card__flip {
+    position: absolute;
+    top: 8cqi;
+    left: 8cqi;
+    display: grid;
+    place-items: center;
+    width: max(11cqi, 1.6rem);
+    aspect-ratio: 1;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(244, 238, 220, 0.94);
+    color: var(--ink);
+    cursor: pointer;
+    opacity: 0;
+    transform: translateZ(2px);
+    box-shadow: 0 0.2rem 0.5rem rgba(0, 0, 0, 0.35);
+    transition:
+      opacity 0.2s ease,
+      background-color 0.2s ease,
+      color 0.2s ease;
+  }
+
+  :global([data-skin='homage']) .card__flip:focus-visible { opacity: 1; }
+
+  /* 44px of target around a small button */
+  :global([data-skin='homage']) .card__flip::before {
+    content: '';
+    position: absolute;
+    inset: -0.55rem;
+  }
+
+  :global([data-skin='homage']) .card__flip:hover { background: var(--plate); }
+
+  :global([data-skin='homage']) .card.is-flipped .card__flip {
+    background: var(--board-ink);
+    color: var(--board);
+  }
+
+  .card__flip svg {
+    width: 62%;
+    height: 62%;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* ---- Dealt in as the row scrolls into view (Crew.astro arms this) ---- */
+
+  :global(.is-dealing [data-deal]) .card {
+    transition:
+      opacity 0.5s ease calc(var(--i) * 80ms),
+      transform 0.9s var(--ease-out) calc(var(--i) * 80ms);
+  }
+
+  :global(.is-dealing [data-deal]:not(.is-dealt)) .card {
+    opacity: 0;
+    transform: translateY(2.5rem) rotate(var(--deal-spin, 0deg));
+  }
+
+  :global([data-skin='homage']) .card { --deal-spin: calc(var(--lean) * 4); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card__body,
+    .card__inner { transition: none !important; }
+  }
+</style>
