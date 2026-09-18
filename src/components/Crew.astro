@@ -1,9 +1,8 @@
 ---
 // src/components/Crew.astro
 // The crew as this year's series of trading cards: heads as the large
-// cards, deputies below, and a blank card at the end for whoever joins
-// next. Earlier crews live on as hologram busts over a projector, one
-// year at a time.
+// cards, deputies below. Earlier crews live on as hologram busts over a
+// projector, one year at a time.
 //
 // Two skins, switchable from the header while the design is being
 // decided: Homage (the cards and the projector) and Light (the same
@@ -64,7 +63,6 @@ const pad = (n: number) => String(n).padStart(2, '0');
               <CrewCard member={m} number={pad(heads.length + i + 1)} series={series} tier="deputy" index={i} />
             ))}
           </ol>
-          <CrewCard blank="#join" tier="deputy" index={deputies.length} />
         </div>
       </div>
 
@@ -222,16 +220,17 @@ const pad = (n: number) => String(n).padStart(2, '0');
     --gap: clamp(0.75rem, 2.4cqw, 1.75rem);
   }
 
-  /* Narrow: heads two across, everything else three across */
+  /* Narrow: heads and deputies two across, past crews three across */
   .crew__tier--heads { --card-w: min(15rem, (100cqw - var(--gap)) / 2); }
-  .crew__tier--deputies,
-  .archive { --card-w: min(10.5rem, (100cqw - 2 * var(--gap)) / 3); }
+  .crew__tier--deputies { --card-w: min(12.5rem, (100cqw - var(--gap)) / 2); }
+  .archive { --card-w: min(12rem, (100cqw - 2 * var(--gap)) / 3); }
 
-  /* Wide: every head on one row, deputies and the blank card on the next */
+  /* Wide: every head on one row, deputies up to five across on the next,
+     and the busts large over the projector, up to four across */
   @container (min-width: 50rem) {
     .crew__tier--heads { --card-w: min(15rem, (100cqw - 3 * var(--gap)) / 4); }
-    .crew__tier--deputies,
-    .archive { --card-w: min(9.5rem, (100cqw - 5 * var(--gap)) / 6); }
+    .crew__tier--deputies { --card-w: min(12.5rem, (100cqw - 4 * var(--gap)) / 5); }
+    .archive { --card-w: min(14rem, (100cqw - 3 * var(--gap)) / 4); }
   }
 
   .crew__tier + .crew__tier { margin-top: clamp(3rem, 8vh, 5rem); }

@@ -30,67 +30,77 @@ export interface PastCrew {
 export const isSample = true;
 
 /** The current crew's year, printed on every card */
-export const series = '2026';
+export const series = "2026";
 
 export const heads: CrewMember[] = [
   {
-    name: 'Prem Dharshan',
-    role: 'Director',
-    focus: 'Manages the Team',
-    photo: '/crew/prem.jpeg'
+    name: "Prem Dharshan",
+    role: "Director",
+    focus: "Manages the Team",
+    photo: "/crew/heads/prem.jpeg",
   },
   {
-    name: 'Mithun Karthik',
-    role: 'Coordinator',
-    focus: 'Reviews every pull request before it ships.',
-    photo: '/crew/mithun.jpeg'
+    name: "Mithun Karthik",
+    role: "Coordinator",
+    focus: "Reviews every pull request before it ships.",
+    photo: "/crew/heads/mithun.jpeg",
   },
   {
-    name: 'Ajay H',
-    role: 'UI/UX Designer',
-    focus: 'Owns how everything the team ships looks and feels.',
-    photo: '/crew/ajay.jpeg'
+    name: "Ajay H",
+    role: "Senior Member",
+    focus: "Owns how everything the team ships looks and feels.",
+    photo: "/crew/heads/ajay.jpeg",
   },
   {
-    name: 'Dinesh',
-    role: 'Secretary',
-    focus: 'Runs the hackathons, workshops and demo days.',
-    photo: '/crew/dinesh.webp'
+    name: "Dinesh",
+    role: "Secretary",
+    focus: "Runs the hackathons, workshops and demo days.",
+    photo: "/crew/heads/dinesh.webp",
   },
 ];
 
 export const deputies: CrewMember[] = [
-  { name: 'Deployment', role: 'Deputy', focus: 'Front ends and the club site.' },
-  { name: 'Jithendra', role: 'Deputy', focus: 'Deploys, servers and the bill.' },
-  { name: 'Nithiish SD', role: 'Senior Member', focus: 'Models, datasets and demos.' }
+  {
+    name: "Hemanth",
+    role: "Deputy",
+    focus: "Front ends and the club site.",
+  },
+  {
+    name: "Jithendra",
+    role: "Deputy",
+    focus: "Deploys, servers and the bill.",
+    photo: "/crew/deputies/jithu.jpg",
+  },
+  {
+    name: "Nithiish SD",
+    role: "Member",
+    focus: "Models, datasets and demos.",
+  },
 ];
 
 export const legacy: PastCrew[] = [
   {
-    year: '2025',
+    year: "2025",
     members: [
-      { name: 'Arjun Pillai', role: 'Club Head' },
-      { name: 'Divya Suresh', role: 'Technical Head' },
-      { name: 'Karthik Rao', role: 'Events Head' },
-      { name: 'Lakshmi N', role: 'Deputy, Web' },
-      { name: 'Sanjay Varma', role: 'Deputy, Design' },
+      { name: "Arjun Pillai", role: "Club Head" },
+      { name: "Divya Suresh", role: "Technical Head" },
+      { name: "Karthik Rao", role: "Events Head" },
     ],
   },
   {
-    year: '2024',
+    year: "2024",
     members: [
-      { name: 'Priya Chandran', role: 'Club Head' },
-      { name: 'Harish Gopal', role: 'Technical Head' },
-      { name: 'Anjali Iyer', role: 'Design Head' },
-      { name: 'Manoj Kumar', role: 'Deputy, Events' },
+      { name: "Rhuban", role: "Coordinator", photo: "/crew/legacy/rhuban.png" },
+      { name: "Harish Gopal", role: "Technical Head" },
+      { name: "Anjali Iyer", role: "Design Head" },
     ],
   },
   {
-    year: '2023',
+    year: "2023",
     members: [
-      { name: 'Siddharth Nair', role: 'Founder' },
-      { name: 'Revathi K', role: 'Founder' },
-      { name: 'Aditya Sharma', role: 'Founder' },
+      { name: "Siddharth Nair", role: "Founder" },
+      { name: "Revathi K", role: "Founder" },
+      { name: "Aditya Sharma", role: "Founder" },
     ],
   },
 ];

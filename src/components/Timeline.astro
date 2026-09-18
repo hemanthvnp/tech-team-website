@@ -63,8 +63,7 @@ import { milestones, isSample } from '../data/timeline';
             <span class="tl__node tl__node--end" aria-hidden="true"></span>
             <div class="tl__entry tl__entry--end">
               <p class="tl__date">Next</p>
-              <p class="tl__title">Your chapter</p>
-              <a class="tl__link" href="#join">Join the crew</a>
+              <p class="tl__title">To be continued</p>
             </div>
           </div>
 
@@ -415,27 +414,6 @@ import { milestones, isSample } from '../data/timeline';
     font-size: 0.92rem;
     line-height: 1.5;
     text-wrap: pretty;
-  }
-
-  .tl__link {
-    display: inline-block;
-    margin-top: 0.9rem;
-    padding: 0.45rem 0.95rem;
-    border: 1px solid rgba(254, 218, 74, 0.35);
-    border-radius: 999px;
-    color: var(--yellow-dim);
-    font-size: 0.75rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    text-decoration: none;
-    transition: color 0.2s, border-color 0.2s, background 0.2s;
-  }
-
-  .tl__link:hover,
-  .tl__link:focus-visible {
-    color: #000;
-    background: var(--yellow);
-    border-color: var(--yellow);
   }
 
   /* Surfacing: the hairline grows out of the node, then the text rises above
@@ -850,14 +828,6 @@ import { milestones, isSample } from '../data/timeline';
       // undo any scroll a focused element tries to cause
       route.addEventListener('scroll', () => {
         if (route.scrollLeft) route.scrollLeft = 0;
-      });
-
-      // Tabbing to the closing link flies straight to the end of the route
-      tl.addEventListener('focusin', (e) => {
-        if (!(e.target as Element).closest('.tl__end')) return;
-        const endTop = window.scrollY + tl.getBoundingClientRect().top + (tl.offsetHeight - frame.offsetHeight);
-        window.scrollTo({ top: endTop, behavior: 'instant' });
-        snap(); // the link already has focus, so it can't wait for the glide
       });
     }
   }
