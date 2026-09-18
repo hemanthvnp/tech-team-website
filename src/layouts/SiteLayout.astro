@@ -1,0 +1,59 @@
+---
+// src/layouts/SiteLayout.astro
+// The page shell. The body is rendered first so the navbar can be built from
+// it: every <Section label="…"> on the page becomes a link, in page order.
+import SiteNav from '../components/SiteNav.astro';
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+}
+
+const { title = 'Tech Team' } = Astro.props;
+
+const body = await Astro.slots.render('default');
+
+const decode = (s: string) =>
+  s
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&#x27;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
+
+const sections = [...body.matchAll(/<section\b[^>]*\sdata-nav-label="([^"]*)"[^>]*>/g)]
+  .map(([tag, label]) => ({
+    id: decode(tag.match(/\sid="([^"]*)"/)?.[1] ?? ''),
+    label: decode(label),
+  }))
+  .filter((s) => s.id && s.label);
+
+// A page that opens on the intro starts with the navbar already out of frame,
+// so it never shows and then slides away on load. The hero takes over the
+// attribute once its script runs.
+const hasIntro = /\sdata-intro-root[\s=>]/.test(body);
+---
+
+<html lang="en" data-intro={hasIntro ? 'playing' : undefined}>
+  <head>
+    <noscript><style>[data-site-nav] { transform: none !important; }</style></noscript>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Anton&family=News+Cycle:wght@400;700&display=swap"
+    />
+    <title>{title}</title>
+  </head>
+  <body>
+    <SiteNav sections={sections} />
+    <main id="main">
+      <Fragment set:html={body} />
+    </main>
+  </body>
+</html>

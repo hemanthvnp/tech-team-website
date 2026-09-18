@@ -34,8 +34,12 @@ const {
 } = Astro.props;
 ---
 
-<section class="sw" id="tech-team-hero" aria-label="Tech Team intro">
+<section class="sw" id="tech-team-hero" aria-label="Tech Team intro" data-intro-root>
   <canvas class="sw__stars" aria-hidden="true"></canvas>
+
+  <!-- Draws nothing. Its animation starts on the beat the title begins to
+       turn blue, which is how the page hears about that moment. -->
+  <span class="sw__cue" aria-hidden="true"></span>
 
   <!-- Beat 2 sits underneath, so the story passes in front of the title -->
   <div class="sw__title-layer">
@@ -97,16 +101,7 @@ const {
 </section>
 
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Anton&family=News+Cycle:wght@400;700&display=swap');
-
-  /* Star Jedi, the logo face itself. Uppercase only, which the title already is. */
-  @font-face {
-    font-family: 'Star Jedi';
-    src: url('/fonts/Starjedi.ttf') format('truetype');
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-  }
+  /* Faces (News Cycle, Anton, Star Jedi) are loaded site-wide by SiteLayout. */
 
   .sw {
     /* ---- Timing. The title lands right as the story finishes. ----
@@ -164,6 +159,7 @@ const {
 
     /* ---- Colour ---- */
     --yellow: #feda4a;
+    --story-color: #fdbc1c; /* #eca902's amber, lifted in lightness */
     --title-color-end: #4bd5ee;
 
     position: relative;
@@ -193,11 +189,24 @@ const {
     pointer-events: none;
     perspective: var(--crawl-perspective);
     perspective-origin: 50% var(--vanish);
-    /* Not the old fade-out — the cut sits up near the vanishing point, where
-       the plane has already shrunk text to about a quarter size, so it only
-       clears the sub-pixel mush that would otherwise pile up on the horizon. */
-    -webkit-mask-image: linear-gradient(to top, #000 0%, #000 74%, rgba(0, 0, 0, 0) 85%);
-    mask-image: linear-gradient(to top, #000 0%, #000 74%, rgba(0, 0, 0, 0) 85%);
+    /* Distance haze, not a cut. The story stays at full strength through the
+       lower half, then dims steadily over the upper third as it recedes, and
+       is gone before it reaches the horizon. The top of the slab ends as a
+       soft flat edge, which keeps the whole crawl reading as a trapezoid
+       instead of converging to a point. The stops ease out so the dimming
+       has no visible band. */
+    --haze: linear-gradient(
+      to top,
+      #000 0%,
+      #000 58%,
+      rgba(0, 0, 0, 0.85) 64%,
+      rgba(0, 0, 0, 0.62) 70%,
+      rgba(0, 0, 0, 0.38) 76%,
+      rgba(0, 0, 0, 0.17) 81%,
+      rgba(0, 0, 0, 0) 86%
+    );
+    -webkit-mask-image: var(--haze);
+    mask-image: var(--haze);
   }
 
   .sw__crawl {
@@ -206,17 +215,22 @@ const {
     left: 0;
     right: 0;
     margin: 0 auto;
-    width: min(88vw, 760px);
+    /* A wide slab with tight paragraph gaps, so the tilt turns it into one
+       solid trapezoid rather than a stack of separate blocks */
+    width: min(90vw, 1000px);
     transform-origin: 50% 100%;
     transform: rotateX(var(--tilt)) translateY(var(--crawl-from));
     will-change: transform;
-    color: var(--yellow);
+    color: var(--story-color);
     font-family: 'News Cycle', 'Franklin Gothic Medium', system-ui, sans-serif;
     font-weight: 700;
-    font-size: clamp(1.2rem, 4.2vw, 2.3rem);
-    line-height: 1.45;
+    font-size: clamp(1.05rem, 3.9vw, 2.45rem);
+    line-height: 1.4;
     text-align: justify;
-    text-shadow: 0 0 22px rgba(254, 218, 74, 0.22);
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    text-wrap: pretty;
+    text-shadow: 0 0 6px rgba(253, 188, 28, 0.35), 0 0 22px rgba(253, 188, 28, 0.3);
     opacity: 0;
   }
 
@@ -238,8 +252,12 @@ const {
     }
   }
 
-  .sw__crawl p { margin: 0 0 1.2em; }
+  .sw__crawl p { margin: 0 0 0.7em; }
   .sw__crawl p:last-child { margin-bottom: 0; }
+
+  /* Justified edges stay straight; a paragraph's short last line sits on the
+     centre line, as in the film, instead of notching the left edge */
+  .sw__para { text-align-last: center; }
 
   .sw__episode,
   .sw__subtitle {
@@ -250,7 +268,7 @@ const {
   .sw__episode { letter-spacing: 0.12em; }
 
   .sw__subtitle {
-    margin-bottom: 2em;
+    margin-bottom: 1em;
     letter-spacing: 0.06em;
   }
 
@@ -259,7 +277,7 @@ const {
     text-transform: uppercase;
     letter-spacing: 0.14em;
     font-size: 0.7em;
-    margin-top: 2em;
+    margin-top: 1.4em;
   }
 
   /* ---------- Beat 2: TECH TEAM ---------- */
@@ -328,6 +346,26 @@ const {
     }
   }
 
+  /* The flatten-and-turn-blue beat starts 70% into the title's timeline. The
+     cue's own animation starts on exactly that beat, and its animationstart
+     is what tells the page. Built from the same vars, so --speed keeps the
+     two in step. */
+  .sw__cue {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+  }
+
+  .sw.is-playing .sw__cue {
+    animation: sw-cue 1ms linear calc(var(--t-title-delay) + var(--t-title) * 0.7) both;
+  }
+
+  @keyframes sw-cue {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
   /* Resting state — also where "Skip" lands you */
   .sw.is-done .sw__title {
     opacity: 1;
@@ -370,6 +408,14 @@ const {
   .sw__actions { margin-top: 1.4rem; }
   .sw__actions:empty { display: none; }
 
+  /* No scrolling while the sequence runs; the script sets and clears this.
+     --intro-lock-lane pads the space a hidden scrollbar leaves, so the page
+     doesn't widen and then jump back when the lock lifts. */
+  :global(:root.is-intro-locked) {
+    overflow: hidden;
+    padding-right: var(--intro-lock-lane, 0px);
+  }
+
   /* ---------- Controls ---------- */
 
   .sw__controls {
@@ -390,6 +436,36 @@ const {
     flex-direction: column;
     align-items: flex-end;
     gap: 0.6rem;
+    transition: transform 1.1s cubic-bezier(0.22, 0.8, 0.24, 1);
+  }
+
+  /* When the site navbar comes down, the HUD steps down with it rather than
+     sitting underneath. --nav-h comes from the navbar; with no navbar on the
+     page it is unset and nothing moves. */
+  :global(:root:not([data-intro='playing'])) .sw__hud,
+  :global(:root:has([data-site-nav]:focus-within)) .sw__hud {
+    transform: translateY(var(--nav-h, 0px));
+  }
+
+  /* On a phone the navbar's Menu pill owns the top-right corner, so once the
+     sequence lands Replay leaves it for the end card, under the year, and
+     fades in with it. */
+  @media (max-width: 47.99rem) {
+    .sw.is-done .sw__hud {
+      top: auto;
+      left: 0;
+      right: 0;
+      bottom: max(1rem, calc(12vh - 3.3rem));
+      align-items: center;
+      transform: none;
+      transition: none;
+      animation: sw-hud-in 1.2s ease both;
+    }
+  }
+
+  @keyframes sw-hud-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   .sw__btn {
@@ -623,33 +699,66 @@ const {
       });
     }
 
-    /* ---- Sequence control ---- */
+    /* ---- Sequence control ----
+       <html data-intro> tells the rest of the page where the sequence is:
+       "playing", then "landing" as the title starts turning blue, then
+       "done". The site navbar keys its entrance off it. */
+    const page = document.documentElement;
     const title = root.querySelector('.sw__title');
+    const cue = root.querySelector('.sw__cue');
     const audio = root.querySelector('.sw__audio') as HTMLAudioElement | null;
     const soundBtn = root.querySelector('[data-action="sound"]');
     const soundLabel = root.querySelector('[data-sound-label]');
 
+    /* The page does not scroll until the sequence has ended or been skipped.
+       The lock is set here, never by the server, so a script that fails to
+       run cannot trap anyone on the intro. */
+    const lock = () => {
+      if (page.classList.contains('is-intro-locked')) return;
+      const before = page.clientWidth;
+      page.classList.add('is-intro-locked');
+      const lane = page.clientWidth - before; // width of a classic scrollbar, else 0
+      page.style.setProperty('--intro-lock-lane', `${Math.max(0, lane)}px`);
+    };
+
+    const unlock = () => {
+      page.classList.remove('is-intro-locked');
+      page.style.removeProperty('--intro-lock-lane');
+    };
+
     const finish = () => {
       root.classList.remove('is-playing');
       root.classList.add('is-done');
+      page.dataset.intro = 'done';
+      unlock();
     };
 
     const play = () => {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      lock();
       root.classList.remove('is-done', 'is-playing');
       void root.offsetWidth; // force a reflow so the animations restart
       root.classList.add('is-playing');
+      page.dataset.intro = 'playing';
+    };
+
+    const skip = () => {
+      if (audio) audio.pause();
+      finish();
     };
 
     // The title is the last thing to settle, so it owns the end of the sequence.
     if (title) title.addEventListener('animationend', finish);
+    if (cue) cue.addEventListener('animationstart', () => (page.dataset.intro = 'landing'));
 
     const skipBtn = root.querySelector('[data-action="skip"]');
-    if (skipBtn) {
-      skipBtn.addEventListener('click', () => {
-        if (audio) audio.pause();
-        finish();
-      });
-    }
+    if (skipBtn) skipBtn.addEventListener('click', skip);
+
+    // Choosing a section in the navbar ends the intro first, so the jump to
+    // it is not scrolling past a sequence that is still running.
+    document.addEventListener('intro:skip', () => {
+      if (root.classList.contains('is-playing')) skip();
+    });
 
     /* The slider drives --speed, which every duration in the stylesheet
        divides by, so one value re-times the whole sequence. The audio is
@@ -697,7 +806,19 @@ const {
       });
     }
 
-    if (reduced) {
+    // A reload always restarts the intro, so it should start at the top
+    // rather than wherever the page was left.
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
+    // A link straight to a section (#join) lands on that section: the visitor
+    // asked to be somewhere else, and the page can't scroll while it plays.
+    let deepLink = false;
+    try {
+      const target = location.hash.length > 1 && document.getElementById(decodeURIComponent(location.hash.slice(1)));
+      deepLink = !!target && !root.contains(target);
+    } catch {}
+
+    if (reduced || deepLink) {
       finish();
     } else {
       play();

@@ -1,0 +1,40 @@
+/* Site-wide: the faces, the page ground, and the browser surfaces no
+   component draws (selection, focus, scrollbar). */
+
+/* Star Jedi, the logo face itself. Its lowercase are the plain logo letters;
+   its capitals carry swash strokes that collide inside most words (TECH TEAM
+   happens to survive). Set ordinary words in lowercase. */
+@font-face {
+  font-family: 'Star Jedi';
+  src: url('/fonts/Starjedi.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark;
+  scrollbar-color: rgba(254, 218, 74, 0.35) #000;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: #000;
+  color: #feda4a;
+  font-family: 'News Cycle', 'Franklin Gothic Medium', system-ui, sans-serif;
+}
+
+::selection {
+  background: #feda4a;
+  color: #000;
+}
+
+:focus-visible {
+  outline: 1px solid #feda4a;
+  outline-offset: 4px;
+}

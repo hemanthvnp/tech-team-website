@@ -1,0 +1,484 @@
+---
+// src/components/SiteNav.astro
+// The site navbar. Logo top-left, one link per labelled <Section> on the
+// page. It stays out of the way while the opening crawl runs and drops in
+// from the top the moment TECH TEAM starts turning blue (the hero reports
+// that beat on <html data-intro>). The current section's link lights a
+// saber-blade underline. When the links no longer fit, they fold into a
+// full-screen menu.
+import fs from 'node:fs';
+import path from 'node:path';
+
+interface NavSection {
+  id: string;
+  label: string;
+}
+
+interface Props {
+  sections?: NavSection[];
+  /** Logo under public/. Until that file exists, the Star Jedi wordmark stands in. */
+  logoSrc?: string;
+  name?: string;
+}
+
+const { sections = [], logoSrc = '/logo.svg', name = 'Tech Team' } = Astro.props;
+
+const hasLogo = fs.existsSync(path.join(process.cwd(), 'public', logoSrc));
+const [wordTop, ...wordRest] = name.toUpperCase().split(' ');
+const wordBottom = wordRest.join(' ');
+---
+
+<header class="nav" data-site-nav>
+  <div class="nav__bar">
+    <a class="nav__brand" href="#top" aria-label={`${name}, back to top`}>
+      {hasLogo ? (
+        <img class="nav__logo" src={logoSrc} alt="" />
+      ) : (
+        <span class="nav__wordmark" aria-hidden="true">
+          <span>{wordTop}</span>
+          {wordBottom && <span>{wordBottom}</span>}
+        </span>
+      )}
+    </a>
+
+    {sections.length > 0 && (
+      <nav class="nav__links" aria-label="Sections">
+        <ul>
+          {sections.map((s) => (
+            <li>
+              <a class="nav__link" href={`#${s.id}`} data-nav-link={s.id}>
+                <span class="nav__label">{s.label}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    )}
+
+    {sections.length > 0 && (
+      <button class="nav__pill nav__toggle" type="button" popovertarget="site-nav-panel">
+        Menu
+      </button>
+    )}
+  </div>
+
+  {sections.length > 0 && (
+    <div class="nav__panel" id="site-nav-panel" popover="auto">
+      <div class="nav__bar">
+        <a class="nav__brand" href="#top" aria-label={`${name}, back to top`}>
+          {hasLogo ? (
+            <img class="nav__logo" src={logoSrc} alt="" />
+          ) : (
+            <span class="nav__wordmark" aria-hidden="true">
+              <span>{wordTop}</span>
+              {wordBottom && <span>{wordBottom}</span>}
+            </span>
+          )}
+        </a>
+        <button
+          class="nav__pill nav__close"
+          type="button"
+          popovertarget="site-nav-panel"
+          popovertargetaction="hide"
+        >
+          Close
+        </button>
+      </div>
+
+      <nav aria-label="Sections">
+        <ul class="nav__panel-list">
+          {sections.map((s, i) => (
+            <li style={`--i: ${i}`}>
+              <a class="nav__panel-link" href={`#${s.id}`} data-nav-link={s.id}>
+                <span class="nav__label">{s.label}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </div>
+  )}
+</header>
+
+<style>
+  :global(:root) {
+    --nav-h: 4rem;
+    --nav-inset: clamp(0.75rem, 2vw, 1.75rem); /* same inset as the hero's HUD */
+  }
+
+  /* Anchored sections land below the bar, not under it */
+  :global(html) { scroll-padding-top: var(--nav-h); }
+
+  /* The page behind a full-screen menu should not scroll */
+  :global(:root:has(#site-nav-panel:popover-open)) { overflow: hidden; }
+
+  .nav {
+    /* The same curve the hero title flattens on, so the bar lands with it */
+    --ease-land: cubic-bezier(0.22, 0.8, 0.24, 1);
+    --yellow: #feda4a;
+    --yellow-dim: rgba(254, 218, 74, 0.75);
+    --blue: #4bd5ee;
+
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: var(--intro-lock-lane, 0px); /* hero's scroll lock; see TechTeamHero */
+    z-index: 50;
+    border-bottom: 1px solid transparent;
+    transition:
+      transform 1.1s var(--ease-land),
+      background-color 0.4s ease,
+      border-color 0.4s ease;
+  }
+
+  /* Up out of frame while the crawl runs. It still comes down for anyone who
+     tabs into it. Reduced motion has no crawl. */
+  @media (prefers-reduced-motion: no-preference) {
+    :global(:root[data-intro='playing']) .nav:not(:focus-within) {
+      transform: translateY(-100%);
+    }
+  }
+
+  /* See-through over the starfield; a solid bar once content slides under.
+     Fully opaque: warp trails bleeding through read as dirt on the bar. */
+  .nav.is-solid {
+    background-color: #000;
+    border-bottom-color: rgba(254, 218, 74, 0.14);
+  }
+
+  .nav__bar {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    height: var(--nav-h);
+    padding-inline: var(--nav-inset);
+  }
+
+  /* ---------- Brand ---------- */
+
+  .nav__brand {
+    flex: none;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    color: var(--blue);
+    text-decoration: none;
+  }
+
+  .nav__logo {
+    display: block;
+    height: calc(var(--nav-h) * 0.5);
+    width: auto;
+    max-width: 11rem;
+  }
+
+  /* The landed title, in miniature: stacked, blue, glowing */
+  .nav__wordmark {
+    display: flex;
+    flex-direction: column;
+    font-family: 'Star Jedi', 'Anton', sans-serif;
+    font-size: 0.95rem;
+    line-height: 0.92;
+    letter-spacing: 0.04em;
+    text-align: center;
+    text-shadow: 0 0 14px rgba(75, 213, 238, 0.45);
+    transition: text-shadow 0.3s ease;
+  }
+
+  .nav__brand:hover .nav__wordmark {
+    text-shadow: 0 0 18px rgba(75, 213, 238, 0.8);
+  }
+
+  /* ---------- Inline links ---------- */
+
+  .nav__links {
+    flex: 1 1 auto;
+    display: flex;
+    min-width: 0;
+    height: 100%;
+    overflow: hidden;
+    /* room for focus rings the clip would otherwise shave off */
+    padding-inline: 0.5rem;
+    margin-inline: -0.5rem;
+  }
+
+  .nav__links ul {
+    flex: none;
+    display: flex;
+    gap: clamp(1.25rem, 2.6vw, 2.25rem);
+    margin: 0 0 0 auto;
+    padding: 0;
+    list-style: none;
+  }
+
+  .nav__links li { display: flex; }
+
+  .nav__link {
+    display: flex;
+    align-items: center;
+    color: var(--yellow-dim);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: color 0.2s ease;
+  }
+
+  .nav__link:hover { color: var(--yellow); }
+  .nav__link:focus-visible { outline: none; }
+  .nav__link:focus-visible .nav__label {
+    outline: 1px solid var(--yellow);
+    outline-offset: 6px;
+  }
+
+  /* ---------- The current section: a saber blade that ignites ---------- */
+
+  .nav__label { position: relative; }
+
+  .nav__label::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0.18em; /* stop at the last glyph, not its trailing tracking */
+    bottom: -0.75em;
+    height: 2px;
+    border-radius: 2px;
+    background: #e9fbff;
+    box-shadow:
+      0 0 4px rgba(75, 213, 238, 0.95),
+      0 0 12px rgba(75, 213, 238, 0.6);
+    transform: scaleX(0);
+    transform-origin: left center; /* out of the hilt, back into the hilt */
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .nav__link[aria-current='true'],
+  .nav__link[aria-current='true']:hover,
+  .nav__panel-link[aria-current='true'],
+  .nav__panel-link[aria-current='true']:hover { color: var(--blue); }
+  [aria-current='true'] .nav__label::after { transform: scaleX(1); }
+
+  /* ---------- Menu / Close: the hero's pill buttons ---------- */
+
+  .nav__pill {
+    position: relative;
+    flex: none;
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid rgba(254, 218, 74, 0.35);
+    border-radius: 999px;
+    color: var(--yellow-dim);
+    font-family: 'News Cycle', system-ui, sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 0.45rem 0.95rem;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+  }
+
+  /* 44px of target around a 30px pill */
+  .nav__pill::before {
+    content: '';
+    position: absolute;
+    inset: -0.45rem;
+  }
+
+  .nav__pill:hover,
+  .nav__pill:focus-visible {
+    color: #000;
+    background: var(--yellow);
+    border-color: var(--yellow);
+  }
+
+  .nav__toggle { display: none; }
+
+  /* Folded: phones always, wider screens once the links stop fitting */
+  @media (max-width: 47.99rem) {
+    :global(:root) { --nav-h: 3.5rem; }
+    .nav__links { display: none; }
+    .nav__toggle { display: inline-block; }
+  }
+
+  .nav.is-compact .nav__links { display: none; }
+  .nav.is-compact .nav__toggle { display: inline-block; }
+
+  /* ---------- Full-screen menu ---------- */
+
+  .nav__panel {
+    inset: 0;
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: #000;
+    color: inherit;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .nav__panel::backdrop { background: transparent; }
+
+  .nav__panel-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin: 0;
+    padding: clamp(1.5rem, 7vh, 4rem) var(--nav-inset) 3rem;
+    list-style: none;
+    perspective: 600px;
+    perspective-origin: 50% 0%;
+  }
+
+  .nav__panel-link {
+    display: block;
+    width: fit-content;
+    padding-block: 0.55rem;
+    color: var(--yellow-dim);
+    font-size: clamp(1.75rem, 8vw, 2.75rem);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  .nav__panel-link:hover { color: var(--yellow); }
+
+  .nav__panel-link .nav__label::after {
+    right: 0.08em;
+    bottom: -0.2em;
+    height: 3px;
+  }
+
+  /* The list rides up the crawl's tilted plane and flattens to the camera,
+     the same move the title makes, only quicker */
+  @media (prefers-reduced-motion: no-preference) {
+    .nav__panel {
+      opacity: 0;
+      transition:
+        opacity 0.3s ease,
+        display 0.3s allow-discrete,
+        overlay 0.3s allow-discrete;
+    }
+
+    .nav__panel:popover-open { opacity: 1; }
+
+    .nav__panel-list li {
+      transform-origin: 50% 100%;
+      transition:
+        transform 0.7s var(--ease-land) calc(var(--i) * 45ms),
+        opacity 0.45s ease calc(var(--i) * 45ms);
+    }
+
+    @starting-style {
+      .nav__panel:popover-open { opacity: 0; }
+
+      .nav__panel:popover-open .nav__panel-list li {
+        opacity: 0;
+        transform: rotateX(34deg) translateY(2.5rem);
+      }
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .nav,
+    .nav__label::after { transition: none; }
+  }
+</style>
+
+<script>
+  function initSiteNav() {
+    const header = document.querySelector<HTMLElement>('[data-site-nav]');
+    if (!header || header.dataset.ready === 'true') return;
+    header.dataset.ready = 'true';
+
+    const links = Array.from(header.querySelectorAll<HTMLAnchorElement>('[data-nav-link]'));
+    const ids = [...new Set(links.map((a) => a.dataset.navLink as string))];
+
+    /* ---- Where we are: solid bar, current section ---- */
+    let current: string | null = null;
+
+    const setCurrent = (id: string | null) => {
+      if (id === current) return;
+      current = id;
+      for (const a of links) {
+        if (a.dataset.navLink === id) a.setAttribute('aria-current', 'true');
+        else a.removeAttribute('aria-current');
+      }
+    };
+
+    const update = () => {
+      const y = window.scrollY;
+      const vh = window.innerHeight;
+      header.classList.toggle('is-solid', y > 8);
+
+      // The current section is the last one whose top has crossed a line a
+      // third of the way down. At the very bottom the last section wins, even
+      // if it is too short to reach that line.
+      const line = vh * 0.35;
+      let id: string | null = null;
+      for (const sid of ids) {
+        const el = document.getElementById(sid);
+        if (el && el.getBoundingClientRect().top <= line) id = sid;
+      }
+      const atBottom = y + vh >= document.documentElement.scrollHeight - 2;
+      if (atBottom && id && ids.length) id = ids[ids.length - 1];
+      setCurrent(id);
+    };
+
+    let queued = false;
+    const queue = () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => {
+        queued = false;
+        update();
+      });
+    };
+    window.addEventListener('scroll', queue, { passive: true });
+    window.addEventListener('resize', queue);
+    update();
+
+    /* ---- Fold the links into the menu when they stop fitting. Phones are
+       folded by the stylesheet; this catches wide screens with many links. */
+    const inline = header.querySelector<HTMLElement>('.nav__links');
+    const narrow = window.matchMedia('(max-width: 47.99rem)');
+
+    const fit = () => {
+      if (!inline) return;
+      header.classList.remove('is-compact');
+      if (narrow.matches) return;
+      header.classList.toggle('is-compact', inline.scrollWidth > inline.clientWidth + 1);
+    };
+
+    new ResizeObserver(fit).observe(header);
+    if (document.fonts) document.fonts.ready.then(fit);
+
+    /* ---- The page can't scroll while the intro runs, so choosing a section
+       ends it first (the hero listens for this) and then the jump happens. */
+    header.addEventListener('click', (e) => {
+      if ((e.target as Element).closest('a[data-nav-link]')) {
+        document.dispatchEvent(new CustomEvent('intro:skip'));
+      }
+    });
+
+    /* ---- Picking a destination closes the menu ---- */
+    const panel = header.querySelector<HTMLElement>('#site-nav-panel');
+    if (panel) {
+      panel.addEventListener('click', (e) => {
+        if ((e.target as Element).closest('a')) panel.hidePopover();
+      });
+    }
+  }
+
+  initSiteNav();
+  document.addEventListener('astro:page-load', initSiteNav);
+</script>

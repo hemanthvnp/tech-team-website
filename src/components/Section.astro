@@ -1,0 +1,18 @@
+---
+// src/components/Section.astro
+// A page section the navbar can find. Give it a `label` and it shows up in
+// the navbar on its own, in page order; leave the label off to keep it out.
+
+interface Props {
+  id: string;
+  /** Navbar link text. */
+  label?: string;
+  class?: string;
+}
+
+const { id, label, class: className } = Astro.props;
+---
+
+<section id={id} data-nav-label={label} class={className}>
+  <slot />
+</section>

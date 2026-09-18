@@ -1,0 +1,832 @@
+---
+// src/components/Timeline.astro
+// The team's milestones along a hyperspace route. The section pins to the
+// screen and the page's own scroll flies a small freighter down a wavy
+// path that runs diagonally, so the scene slides up and to the left as it
+// advances. Milestones sit on the path's crests and troughs, alternating
+// above and below. Each one surfaces as the ship reaches it. The ship
+// leaves a short trail behind it that fades when it stops.
+//
+// Without JS, or with reduced motion, it becomes a plain sideways-scrolling
+// strip with every milestone shown.
+import Section from './Section.astro';
+import { milestones, isSample } from '../data/timeline';
+---
+
+<Section id="timeline" label="Timeline">
+  <div class="tl" data-timeline>
+    <div class="tl__frame">
+      <canvas class="tl__stars" aria-hidden="true"></canvas>
+
+      <div class="tl__head">
+        <h2 class="tl__heading">Timeline</h2>
+        {isSample && <p class="tl__note">Sample achievements. Replace them in src/data/timeline.ts</p>}
+      </div>
+
+      <div class="tl__route">
+        <div class="tl__track">
+          <svg class="tl__path" aria-hidden="true" focusable="false">
+            <defs>
+              <!-- Hot right behind the engines, fading to nothing at the tail -->
+              <linearGradient id="tl-trail" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="#4bd5ee" stop-opacity="0" />
+                <stop offset="0.6" stop-color="#4bd5ee" stop-opacity="0.55" />
+                <stop offset="1" stop-color="#e9fbff" stop-opacity="1" />
+              </linearGradient>
+            </defs>
+            <!-- One dash of the route, kept just behind the ship -->
+            <g class="tl__trails">
+              <path class="tl__trail tl__trail--haze" data-tl-trail d="" />
+              <path class="tl__trail tl__trail--glow" data-tl-trail d="" />
+              <path class="tl__trail tl__trail--core" data-tl-trail d="" />
+            </g>
+          </svg>
+
+          <div class="tl__lead"></div>
+
+          <ol class="tl__stops">
+            {milestones.map((m, i) => (
+              <li class="tl__stop" data-side={i % 2 === 0 ? 'up' : 'down'} style={`--i: ${i}`}>
+                <span class="tl__node" aria-hidden="true"></span>
+                <div class="tl__entry">
+                  <time class="tl__date" datetime={m.datetime}>{m.when}</time>
+                  <h3 class="tl__title">{m.title}</h3>
+                  <p class="tl__text">{m.text}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+
+          <div class="tl__end" style={`--i: ${milestones.length}`}>
+            <span class="tl__node tl__node--end" aria-hidden="true"></span>
+            <div class="tl__entry tl__entry--end">
+              <p class="tl__date">Next</p>
+              <p class="tl__title">Your chapter</p>
+              <a class="tl__link" href="#join">Join the crew</a>
+            </div>
+          </div>
+
+          <!-- Top-down freighter, nose to the right; the engine band is at the back -->
+          <div class="tl__ship" aria-hidden="true">
+            <svg viewBox="-26 -20 52 40">
+              <defs>
+                <radialGradient id="tl-exhaust">
+                  <stop offset="0" stop-color="#e9fbff" stop-opacity="0.95" />
+                  <stop offset="0.45" stop-color="#4bd5ee" stop-opacity="0.55" />
+                  <stop offset="1" stop-color="#4bd5ee" stop-opacity="0" />
+                </radialGradient>
+              </defs>
+              <ellipse class="tl__exhaust" cx="-19" cy="0" rx="8" ry="11" fill="url(#tl-exhaust)" />
+              <path d="M7 -10.4 L21.6 -8.3 Q23 -8.1 23 -6.8 L23 -2.7 L9 -2.3 Z" fill="#c3c9d1" />
+              <path d="M7 10.4 L21.6 8.3 Q23 8.1 23 6.8 L23 2.7 L9 2.3 Z" fill="#c3c9d1" />
+              <path d="M4.5 8.8 L11 14.2" stroke="#c3c9d1" stroke-width="3.2" stroke-linecap="round" />
+              <circle cx="-1" cy="0" r="13.5" fill="#dfe3e8" />
+              <circle cx="12.4" cy="15" r="2.7" fill="#dfe3e8" />
+              <path d="M-11.3 -8.7 A13.5 13.5 0 0 0 -11.3 8.7" fill="none" stroke="#e9fbff" stroke-width="2.6" stroke-linecap="round" />
+              <circle cx="-1" cy="0" r="4.3" fill="none" stroke="#98a1ab" stroke-width="1" />
+              <path d="M3.3 0 L12.5 0" stroke="#98a1ab" stroke-width="1" />
+              <circle cx="-5.6" cy="-7.2" r="2.3" fill="#adb5bf" />
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Section>
+
+<style>
+  /* Anchor jumps land with the pinned frame filling the screen; the frame
+     leaves room for the navbar itself */
+  :global(#timeline) { scroll-margin-top: calc(var(--nav-h, 0px) * -1); }
+
+  .tl {
+    --yellow: #feda4a;
+    --yellow-dim: rgba(254, 218, 74, 0.72);
+    --blue: #4bd5ee;
+    --core: #e9fbff;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+  }
+
+  .tl__frame {
+    /* Geometry, in the frame's own width (cqw) so the numbers match the
+       script's measurements exactly */
+    --ship-x: 34cqw; /* where the ship holds on screen */
+    --step: clamp(17rem, 26cqw, 25rem); /* distance between milestones */
+    --amp: clamp(3rem, 13vh, 8.5rem); /* height of the wave */
+    --gap: 1.1rem; /* node to text */
+    --entry-w: 21rem;
+    --node: 0.75rem;
+    --edge: 6cqw; /* width of the soft fade at each side */
+    --slope: 0.2; /* how far the route drops for each unit it advances */
+
+    container-type: inline-size;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100svh;
+    min-height: 30rem;
+    overflow: hidden;
+    background: #000;
+  }
+
+  .tl.is-flying .tl__frame {
+    position: sticky;
+    top: 0;
+  }
+
+  .tl__stars {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ---------- Heading ---------- */
+
+  .tl__head {
+    position: relative;
+    z-index: 1;
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 1.5rem;
+    row-gap: 0.5rem;
+    width: 100%;
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: calc(var(--nav-h, 0px) + clamp(1.25rem, 4vh, 2.5rem)) clamp(1rem, 4vw, 2.5rem) 0;
+  }
+
+  .tl__heading {
+    margin: 0;
+    color: var(--yellow);
+    font-family: 'Star Jedi', 'Anton', sans-serif;
+    font-weight: 400;
+    font-size: clamp(2.25rem, 7vw, 4.5rem);
+    line-height: 1;
+    letter-spacing: 0.04em;
+    text-transform: lowercase; /* Star Jedi's clean letters; see global.css */
+  }
+
+  .tl__note {
+    margin: 0;
+    color: rgba(254, 218, 74, 0.6);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  /* ---------- The route ---------- */
+
+  .tl__route {
+    position: relative;
+    z-index: 1;
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: clamp(0.5rem, 2vh, 1.5rem) 0 clamp(1rem, 3vh, 2rem);
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+
+  /* Milestones slide out of soft edges instead of being cut mid-word */
+  .tl.is-flying .tl__route {
+    --fade-x: linear-gradient(to right, transparent, #000 var(--edge), #000 calc(100% - var(--edge)), transparent);
+    --fade-y: linear-gradient(to bottom, transparent, #000 var(--edge), #000 calc(100% - var(--edge)), transparent);
+    overflow: hidden;
+    -webkit-mask-image: var(--fade-x), var(--fade-y);
+    -webkit-mask-composite: source-in;
+    mask-image: var(--fade-x), var(--fade-y);
+    mask-composite: intersect;
+  }
+
+  .tl__track {
+    position: relative;
+    display: flex;
+    width: max-content;
+    height: 100%;
+  }
+
+  .tl.is-flying .tl__track { will-change: transform; }
+
+  .tl__path {
+    position: absolute;
+    left: 0;
+    top: 0;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  /* The trail: three strokes of one gradient make the glow, no filter */
+  .tl__trails { visibility: hidden; }
+
+  .tl__trail {
+    fill: none;
+    stroke: url(#tl-trail);
+    stroke-linecap: round;
+  }
+
+  .tl__trail--haze { stroke-width: 16; stroke-opacity: 0.12; }
+  .tl__trail--glow { stroke-width: 6; stroke-opacity: 0.4; }
+  .tl__trail--core { stroke-width: 2; }
+
+  .tl__lead {
+    flex: none;
+    width: var(--ship-x);
+  }
+
+  .tl__stops {
+    flex: none;
+    display: flex;
+    height: 100%;
+    margin: 0;
+    padding: 0 0 0 calc(var(--step) * 0.6);
+    list-style: none;
+  }
+
+  .tl__stop {
+    position: relative;
+    flex: none;
+    width: var(--step);
+    height: 100%;
+  }
+
+  /* Each stop drops in proportion to its distance along the route (the
+     stops' leading padding included), which lays the route on a diagonal */
+  .tl.is-flying .tl__stop,
+  .tl.is-flying .tl__end {
+    translate: 0 calc((var(--i) + 0.6) * var(--step) * var(--slope));
+  }
+
+  /* Exactly one screen past the ship's hold point, so the ship's last stop
+     is the end node */
+  .tl__end {
+    position: relative;
+    flex: none;
+    width: calc(100cqw - var(--ship-x));
+    height: 100%;
+  }
+
+  /* ---------- Nodes ---------- */
+
+  .tl__node {
+    position: absolute;
+    left: 0;
+    top: calc(50% - var(--amp));
+    z-index: 1;
+    box-sizing: border-box;
+    width: var(--node);
+    height: var(--node);
+    margin: calc(var(--node) / -2) 0 0 calc(var(--node) / -2);
+    border: 1.5px solid rgba(254, 218, 74, 0.55);
+    border-radius: 50%;
+    background: #000;
+    transition:
+      background-color 0.3s ease,
+      border-color 0.3s ease,
+      box-shadow 0.3s ease;
+  }
+
+  [data-side='down'] .tl__node { top: calc(50% + var(--amp)); }
+
+  .tl__node--end {
+    top: 50%;
+    border-style: dashed;
+  }
+
+  .tl:not(.is-flying) .tl__node,
+  .is-lit .tl__node {
+    background: var(--core);
+    border-color: var(--blue);
+    box-shadow:
+      0 0 0 3px rgba(75, 213, 238, 0.18),
+      0 0 14px rgba(75, 213, 238, 0.7);
+  }
+
+  /* A ring goes out as the ship passes */
+  .tl__node::after {
+    content: '';
+    position: absolute;
+    inset: -1.5px;
+    border: 1px solid var(--blue);
+    border-radius: 50%;
+    opacity: 0;
+  }
+
+  .tl.is-flying .is-lit .tl__node::after {
+    animation: tl-ping 0.9s var(--ease-out);
+  }
+
+  @keyframes tl-ping {
+    from { opacity: 0.9; transform: scale(1); }
+    to { opacity: 0; transform: scale(3.4); }
+  }
+
+  /* ---------- Milestones ---------- */
+
+  .tl__entry {
+    --rise: 0.9rem;
+    position: absolute;
+    left: 0;
+    z-index: 2;
+    box-sizing: border-box;
+    width: var(--entry-w);
+    padding-left: 0.9rem;
+  }
+
+  /* Hairline from the node out along the text's edge */
+  .tl__entry::before {
+    content: '';
+    position: absolute;
+    left: -0.5px;
+    width: 1px;
+    background: rgba(254, 218, 74, 0.3);
+    transition:
+      transform 0.45s var(--ease-out),
+      background-color 0.3s ease;
+  }
+
+  [data-side='up'] .tl__entry { bottom: calc(50% + var(--amp) + var(--gap)); }
+
+  [data-side='up'] .tl__entry::before {
+    top: 0;
+    bottom: calc((var(--gap) - var(--node) / 2) * -1);
+    transform-origin: 50% 100%;
+  }
+
+  [data-side='down'] .tl__entry {
+    --rise: -0.9rem;
+    top: calc(50% + var(--amp) + var(--gap));
+  }
+
+  [data-side='down'] .tl__entry::before {
+    top: calc((var(--gap) - var(--node) / 2) * -1);
+    bottom: 0;
+    transform-origin: 50% 0;
+  }
+
+  .tl:not(.is-flying) .tl__entry::before,
+  .is-lit .tl__entry::before { background: rgba(75, 213, 238, 0.55); }
+
+  .tl__entry--end {
+    --rise: 0.6rem;
+    top: 50%;
+    left: 2.75rem; /* clear of the parked ship */
+    padding-left: 0;
+    transform: translateY(-50%);
+  }
+
+  .tl__entry--end::before { display: none; }
+
+  .tl__date {
+    display: block;
+    margin: 0 0 0.45rem;
+    color: var(--yellow-dim);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.3s ease;
+  }
+
+  .tl:not(.is-flying) .tl__date,
+  .is-lit .tl__date { color: var(--blue); }
+
+  .tl__title {
+    margin: 0 0 0.4rem;
+    color: var(--yellow);
+    font-size: clamp(1.05rem, 1.5vw, 1.35rem);
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-wrap: balance;
+  }
+
+  .tl__text {
+    margin: 0;
+    color: var(--yellow-dim);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    text-wrap: pretty;
+  }
+
+  .tl__link {
+    display: inline-block;
+    margin-top: 0.9rem;
+    padding: 0.45rem 0.95rem;
+    border: 1px solid rgba(254, 218, 74, 0.35);
+    border-radius: 999px;
+    color: var(--yellow-dim);
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+  }
+
+  .tl__link:hover,
+  .tl__link:focus-visible {
+    color: #000;
+    background: var(--yellow);
+    border-color: var(--yellow);
+  }
+
+  /* Surfacing: the hairline grows out of the node, then the text rises above
+     the wave or drops below it. Reversible, so scrolling back rewinds it. */
+  .tl.is-flying .tl__entry > * {
+    opacity: 0;
+    transform: translateY(var(--rise));
+    transition:
+      opacity 0.45s ease 0.12s,
+      transform 0.7s var(--ease-out) 0.12s,
+      color 0.3s ease;
+  }
+
+  .tl.is-flying .tl__entry::before { transform: scaleY(0); }
+
+  .tl.is-flying .is-shown .tl__entry > * {
+    opacity: 1;
+    transform: none;
+  }
+
+  .tl.is-flying .is-shown .tl__entry::before { transform: scaleY(1); }
+
+  /* ---------- The ship ---------- */
+
+  .tl__ship {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 3;
+    width: 52px;
+    height: 40px;
+    transform-origin: 50% 50%;
+    pointer-events: none;
+  }
+
+  .tl.is-flying .tl__ship { will-change: transform; }
+
+  .tl__ship svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  /* The exhaust stretches with speed (--thrust, set by the script) */
+  .tl__exhaust {
+    transform-box: fill-box;
+    transform-origin: 100% 50%;
+    transform: scaleX(calc(1 + var(--thrust, 0) * 1.1));
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .tl__exhaust { animation: tl-flicker 0.12s steps(2) infinite alternate; }
+  }
+
+  @keyframes tl-flicker {
+    from { opacity: 0.75; }
+    to { opacity: 1; }
+  }
+
+  /* ---------- Phones ---------- */
+
+  @media (max-width: 47.99rem) {
+    .tl__frame {
+      --ship-x: 22cqw;
+      --step: 68cqw;
+      --entry-w: min(19rem, 72cqw);
+      --edge: 9cqw;
+      --amp: clamp(2.75rem, 11vh, 6rem);
+    }
+
+    .tl__ship {
+      width: 44px;
+      height: 34px;
+    }
+  }
+</style>
+
+<script>
+  function initTimeline() {
+    const tl = document.querySelector<HTMLElement>('[data-timeline]');
+    if (!tl || tl.dataset.ready === 'true') return;
+    tl.dataset.ready = 'true';
+
+    const q = <T extends Element>(sel: string) => tl.querySelector<T>(sel) as T;
+    const frame = q<HTMLElement>('.tl__frame');
+    const route = q<HTMLElement>('.tl__route');
+    const track = q<HTMLElement>('.tl__track');
+    const lead = q<HTMLElement>('.tl__lead');
+    const svg = q<SVGSVGElement>('.tl__path');
+    const trailGroup = q<SVGGElement>('.tl__trails');
+    const trails = Array.from(tl.querySelectorAll<SVGPathElement>('[data-tl-trail]'));
+    const grad = q<SVGLinearGradientElement>('#tl-trail');
+    const ship = q<HTMLElement>('.tl__ship');
+    const stops = Array.from(tl.querySelectorAll<HTMLElement>('.tl__stop'));
+    const end = q<HTMLElement>('.tl__end');
+    const canvas = q<HTMLCanvasElement>('.tl__stars');
+    const ctx = canvas.getContext('2d');
+
+    const flying = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    tl.classList.toggle('is-flying', flying);
+
+    /* ---- Geometry, measured off the laid-out page ---- */
+    type Pt = { x: number; y: number };
+    let pts: Pt[] = [];
+    let nodeX: number[] = [];
+    let endX = 0;
+    let travel = 0;
+    let step = 0;
+    let trackW = 0;
+    let shipW = 0;
+    let shipH = 0;
+    let slope = 0;
+    const TRAIL = 250; // px of trail at full speed
+    const PACE = 2; // px of page scroll per px of route
+    const HOLD = 0; // share of each leg's scroll spent parked at either end
+
+    /* Within a leg the ship holds at the node it has reached, then cruises
+       to the next with an ease-in-out, so every milestone sits still long
+       enough to read */
+    const cruise = (u: number) => {
+      const v = Math.min(1, Math.max(0, (u - HOLD) / (1 - 2 * HOLD)));
+      return v * v * v * (v * (v * 6 - 15) + 10);
+    };
+
+    const shipAtProgress = (p: number) => {
+      const target = pts[0].x + p * travel;
+      const last = pts.length - 1;
+      if (target >= pts[last].x) return pts[last].x;
+      let i = 0;
+      while (i < last - 1 && target >= pts[i + 1].x) i++;
+      const dx = pts[i + 1].x - pts[i].x;
+      return pts[i].x + dx * cruise((target - pts[i].x) / (dx || 1));
+    };
+
+    /* The route sampled by length, so the trail can find the ship on it */
+    type Sample = { l: number; x: number; y: number };
+    let samples: Sample[] = [];
+    let routeLen = 0;
+
+    const centre = (el: Element, origin: DOMRect): Pt => {
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2 - origin.left, y: r.top + r.height / 2 - origin.top };
+    };
+
+    /* Every leg is a cubic with flat tangents at both ends, so the route
+       crests and dips through each node. With the control points at the
+       leg's midpoint, x(t) and y(t) reduce to the forms below. */
+    const at = (x: number) => {
+      const last = pts.length - 1;
+      if (x <= pts[0].x) return { y: pts[0].y, a: 0 };
+      if (x >= pts[last].x) return { y: pts[last].y, a: 0 };
+      let i = 0;
+      while (i < last - 1 && x > pts[i + 1].x) i++;
+      const p = pts[i];
+      const n = pts[i + 1];
+      const dx = n.x - p.x;
+      const dy = n.y - p.y;
+      const u = (x - p.x) / dx;
+      let lo = 0;
+      let hi = 1;
+      let t = u;
+      for (let k = 0; k < 22; k++) {
+        t = (lo + hi) / 2;
+        if (1.5 * t - 1.5 * t * t + t * t * t < u) lo = t;
+        else hi = t;
+      }
+      return {
+        y: p.y + dy * (3 * t * t - 2 * t * t * t),
+        a: Math.atan2(dy * (6 * t - 6 * t * t), dx * (1.5 - 3 * t + 3 * t * t)),
+      };
+    };
+
+    const layout = () => {
+      trackW = track.offsetWidth;
+      const trackH = track.offsetHeight;
+      travel = Math.max(0, trackW - route.clientWidth);
+      step = stops[0] ? stops[0].offsetWidth : 0;
+      shipW = ship.offsetWidth;
+      shipH = ship.offsetHeight;
+
+      const origin = track.getBoundingClientRect();
+      const nodes = stops.map((s) => centre(s.querySelector('.tl__node') as Element, origin));
+      const last = centre(end.querySelector('.tl__node') as Element, origin);
+      const start = { x: lead.offsetWidth, y: trackH / 2 };
+      pts = [start, ...nodes, last];
+      nodeX = nodes.map((n) => n.x);
+      endX = last.x;
+
+      let d = `M${start.x} ${start.y}`;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const a = pts[i];
+        const b = pts[i + 1];
+        const m = (a.x + b.x) / 2;
+        d += ` C${m} ${a.y} ${m} ${b.y} ${b.x} ${b.y}`;
+      }
+
+      svg.setAttribute('width', String(trackW));
+      svg.setAttribute('height', String(trackH));
+      svg.setAttribute('viewBox', `0 0 ${trackW} ${trackH}`);
+      for (const t of trails) t.setAttribute('d', d);
+
+      slope = (last.y - start.y) / (last.x - start.x || 1);
+
+      routeLen = trails[0].getTotalLength();
+      const n = Math.max(2, Math.ceil(routeLen / 6));
+      samples = [];
+      for (let k = 0; k <= n; k++) {
+        const l = (routeLen * k) / n;
+        const p = trails[0].getPointAtLength(l);
+        samples.push({ l, x: p.x, y: p.y });
+      }
+
+      // Several pixels of page scroll fly one pixel of route
+      tl.style.height = flying ? `${frame.offsetHeight + travel * PACE}px` : '';
+
+      sizeStars();
+    };
+
+    /* ---- A calm starfield that drifts at several depths ---- */
+    type Star = { x: number; y: number; r: number; d: number; a: number };
+    let stars: Star[] = [];
+    let sw = 0;
+    let sh = 0;
+
+    const sizeStars = () => {
+      if (!ctx) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      sw = canvas.clientWidth;
+      sh = canvas.clientHeight;
+      canvas.width = Math.round(sw * dpr);
+      canvas.height = Math.round(sh * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (!stars.length) {
+        const count = sw < 768 ? 110 : 220;
+        stars = Array.from({ length: count }, () => {
+          const depth = Math.random();
+          return {
+            x: Math.random(),
+            y: Math.random(),
+            r: 0.35 + depth * 1.05,
+            d: 0.04 + depth * 0.3,
+            a: 0.2 + depth * 0.6,
+          };
+        });
+      }
+    };
+
+    const drawStars = (offset: number, rise: number) => {
+      if (!ctx || !sw) return;
+      ctx.clearRect(0, 0, sw, sh);
+      ctx.fillStyle = '#fff';
+      for (const s of stars) {
+        const x = (((s.x * sw - offset * s.d) % sw) + sw) % sw;
+        const y = (((s.y * sh - rise * s.d) % sh) + sh) % sh;
+        ctx.globalAlpha = s.a;
+        ctx.beginPath();
+        ctx.arc(x, y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    };
+
+    /* ---- Thrust: the exhaust flares and the trail stretches with speed,
+       then both settle and the trail fades out ---- */
+    let thrust = 0;
+    let thrustRaf = 0;
+    let lastShipX = -1;
+
+    const lengthAt = (x: number) => {
+      let lo = 0;
+      let hi = samples.length - 1;
+      if (x <= samples[lo].x) return 0;
+      if (x >= samples[hi].x) return routeLen;
+      while (hi - lo > 1) {
+        const mid = (lo + hi) >> 1;
+        if (samples[mid].x < x) lo = mid;
+        else hi = mid;
+      }
+      const a = samples[lo];
+      const b = samples[hi];
+      return a.l + ((x - a.x) / (b.x - a.x || 1)) * (b.l - a.l);
+    };
+
+    const pointAt = (l: number): Pt => {
+      const f = (l / routeLen) * (samples.length - 1);
+      const i = Math.min(samples.length - 2, Math.max(0, Math.floor(f)));
+      const a = samples[i];
+      const b = samples[i + 1];
+      const u = f - i;
+      return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u };
+    };
+
+    const drawTrail = (shipX: number) => {
+      if (!flying || !samples.length) return;
+      const head = lengthAt(shipX);
+      const len = Math.min(head, TRAIL * thrust);
+      if (len < 2) {
+        trailGroup.style.visibility = 'hidden';
+        return;
+      }
+      trailGroup.style.visibility = 'visible';
+      for (const t of trails) {
+        t.style.strokeDasharray = `${len} ${routeLen + len}`;
+        t.style.strokeDashoffset = String(-(head - len));
+      }
+      const tail = pointAt(head - len);
+      const tip = pointAt(head);
+      grad.setAttribute('x1', String(tail.x));
+      grad.setAttribute('y1', String(tail.y));
+      grad.setAttribute('x2', String(tip.x));
+      grad.setAttribute('y2', String(tip.y));
+    };
+
+    const settle = () => {
+      thrust *= 0.9;
+      if (thrust < 0.01) thrust = 0;
+      ship.style.setProperty('--thrust', thrust.toFixed(3));
+      drawTrail(lastShipX);
+      thrustRaf = thrust ? requestAnimationFrame(settle) : 0;
+    };
+
+    /* ---- One frame of flight ---- */
+    const render = () => {
+      if (!pts.length) return;
+      let tx = 0;
+      let shipX = endX;
+
+      if (flying) {
+        const span = tl.offsetHeight - frame.offsetHeight;
+        const p = span > 0 ? Math.min(1, Math.max(0, -tl.getBoundingClientRect().top / span)) : 0;
+        shipX = Math.min(endX, shipAtProgress(p));
+        tx = shipX - pts[0].x;
+        track.style.transform = `translate3d(${-tx}px, ${-tx * slope}px, 0)`;
+      }
+
+      const { y, a } = at(shipX);
+      ship.style.transform = `translate(${shipX - shipW / 2}px, ${y - shipH / 2}px) rotate(${a}rad)`;
+
+      // Surfaces a little before the ship arrives, lights as it passes
+      const early = step * 0.35;
+      stops.forEach((s, i) => {
+        s.classList.toggle('is-shown', !flying || shipX >= nodeX[i] - early);
+        s.classList.toggle('is-lit', !flying || shipX >= nodeX[i] - 1);
+      });
+      end.classList.toggle('is-shown', !flying || shipX >= endX - early);
+      end.classList.toggle('is-lit', !flying || shipX >= endX - 1);
+
+      drawStars(tx, tx * slope);
+
+      if (flying && lastShipX >= 0 && shipX > lastShipX) {
+        thrust = Math.min(1, thrust + (shipX - lastShipX) / 45);
+        if (!thrustRaf) thrustRaf = requestAnimationFrame(settle);
+      }
+      lastShipX = shipX;
+      drawTrail(shipX);
+    };
+
+    let queued = false;
+    const queue = () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => {
+        queued = false;
+        render();
+      });
+    };
+
+    const relayout = () => {
+      layout();
+      render();
+    };
+
+    relayout();
+    new ResizeObserver(relayout).observe(frame);
+    if (flying) window.addEventListener('scroll', queue, { passive: true });
+
+    if (flying) {
+      // The route is moved by transform, never by its own scroll position;
+      // undo any scroll a focused element tries to cause
+      route.addEventListener('scroll', () => {
+        if (route.scrollLeft) route.scrollLeft = 0;
+      });
+
+      // Tabbing to the closing link flies straight to the end of the route
+      tl.addEventListener('focusin', (e) => {
+        if (!(e.target as Element).closest('.tl__end')) return;
+        const endTop = window.scrollY + tl.getBoundingClientRect().top + (tl.offsetHeight - frame.offsetHeight);
+        window.scrollTo({ top: endTop, behavior: 'instant' });
+      });
+    }
+  }
+
+  initTimeline();
+  document.addEventListener('astro:page-load', initTimeline);
+</script>

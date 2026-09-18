@@ -1,19 +1,77 @@
 ---
+import SiteLayout from '../layouts/SiteLayout.astro';
 import TechTeamHero from '../components/TechTeamHero.astro';
+import Section from '../components/Section.astro';
+import Timeline from '../components/Timeline.astro';
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<link rel="preconnect" href="https://fonts.googleapis.com" />
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-		<title>Tech Team - Star Wars Hero</title>
-	</head>
-	<body style="margin: 0; padding: 0; background: #000;">
-		<TechTeamHero />
-	</body>
-</html>
+<SiteLayout title="Tech Team - Star Wars Hero">
+	<TechTeamHero />
+
+	<Timeline />
+
+	<!-- Placeholders, so the navbar has somewhere to go. Any <Section> with a
+	     label joins the navbar by itself; swap these for the real sections. -->
+	<Section id="crew" label="Crew">
+		<div class="placeholder">
+			<h2 class="placeholder__title">Crew</h2>
+			<p class="placeholder__note">Placeholder. Replace this block in src/pages/index.astro</p>
+		</div>
+	</Section>
+
+	<Section id="projects" label="Projects">
+		<div class="placeholder">
+			<h2 class="placeholder__title">Projects</h2>
+			<p class="placeholder__note">Placeholder. Replace this block in src/pages/index.astro</p>
+		</div>
+	</Section>
+
+	<Section id="join" label="Join">
+		<div class="placeholder">
+			<h2 class="placeholder__title">Join</h2>
+			<p class="placeholder__note">Placeholder. Replace this block in src/pages/index.astro</p>
+		</div>
+	</Section>
+</SiteLayout>
+
+<style>
+	.placeholder {
+		box-sizing: border-box;
+		display: grid;
+		align-content: start;
+		gap: clamp(1.5rem, 3vw, 2.25rem);
+		max-width: 72rem;
+		min-height: 85svh;
+		margin: 0 auto;
+		padding: clamp(4rem, 12vh, 7rem) clamp(1rem, 4vw, 2.5rem) clamp(2rem, 6vh, 4rem);
+	}
+
+	.placeholder__title {
+		margin: 0;
+		color: #feda4a;
+		font-family: 'Star Jedi', 'Anton', sans-serif;
+		font-weight: 400;
+		font-size: clamp(2.25rem, 7vw, 4.5rem);
+		line-height: 1;
+		letter-spacing: 0.04em;
+		/* Star Jedi's lowercase are the clean logo letters; its capitals
+		   carry swash strokes that collide inside ordinary words */
+		text-transform: lowercase;
+	}
+
+	/* Reads as a wireframe hole, on purpose: nothing here is content yet */
+	.placeholder__note {
+		display: grid;
+		place-items: center;
+		min-height: 45svh;
+		margin: 0;
+		padding: 2rem 1.25rem;
+		border: 1px dashed rgba(254, 218, 74, 0.3);
+		border-radius: 4px;
+		color: rgba(254, 218, 74, 0.7);
+		font-size: 0.75rem;
+		letter-spacing: 0.14em;
+		text-align: center;
+		text-transform: uppercase;
+	}
+</style>
