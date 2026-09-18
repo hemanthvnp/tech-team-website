@@ -1,0 +1,709 @@
+---
+// src/components/TechTeamHero.astro
+// A Star Wars style hero, in two beats:
+//   1. the yellow story crawl, tilted away into deep space
+//   2. TECH TEAM rides up the same plane behind the story, then flattens
+//      square to the camera at screen centre and shifts colour
+// Pure CSS animation + a canvas starfield. No dependencies.
+
+interface Props {
+  titleTop?: string;
+  titleBottom?: string;
+  episode?: string;
+  subtitle?: string;
+  paragraphs?: string[];
+  names?: string;
+  tagline?: string;
+  /** Optional path to your own fanfare, e.g. "/audio/theme.mp3". Never autoplays. */
+  audioSrc?: string;
+}
+
+const {
+  titleTop = 'TECH',
+  titleBottom = 'TEAM',
+  episode = 'Episode I',
+  subtitle = 'THE LEGACY MENACE',
+  paragraphs = [
+    'It is a period of rapid development. Rebel coders, striking from a hidden repo, have won their first victory against the evil legacy codebase.',
+    'During the battle, spies managed to steal secret source code to the ultimate framework, an IDE with enough power to destroy an entire sprint.',
+    'Pursued by sinister deadlines, the GT-Planar squad races home aboard main, custodian of the commits that can save their release and restore freedom to the galaxy....',
+  ],
+  names = 'Prem Dharshan · Mithun Karthik · Ajay H · Dinesh · Jithendra · Hemanth · Nithiish',
+  tagline = '2026',
+  audioSrc,
+} = Astro.props;
+---
+
+<section class="sw" id="tech-team-hero" aria-label="Tech Team intro">
+  <canvas class="sw__stars" aria-hidden="true"></canvas>
+
+  <!-- Beat 2 sits underneath, so the story passes in front of the title -->
+  <div class="sw__title-layer">
+    <h1 class="sw__title">
+      <span class="sw__title-line">{titleTop}</span>
+      <span class="sw__title-line">{titleBottom}</span>
+    </h1>
+  </div>
+
+  <!-- Beat 1: the story -->
+  <div class="sw__viewport" aria-hidden="true">
+    <div class="sw__crawl">
+      <p class="sw__episode">{episode}</p>
+      <p class="sw__subtitle">{subtitle}</p>
+      {paragraphs.map((text) => <p class="sw__para">{text}</p>)}
+      <p class="sw__names">{names}</p>
+    </div>
+  </div>
+
+  <!-- Fades in under the flattened title once the sequence lands -->
+  <div class="sw__outro">
+    <p class="sw__tagline">{tagline}</p>
+    <div class="sw__actions"><slot /></div>
+  </div>
+
+  <!-- Top right. Skip and Replay never co-exist, so they share the slot:
+       Skip while the sequence runs, Replay once it has landed. -->
+  <div class="sw__hud">
+    <button class="sw__btn" type="button" data-action="skip">Skip</button>
+    <button class="sw__btn" type="button" data-action="replay">Replay</button>
+
+    <label class="sw__speed">
+      <span class="sw__speed-head">
+        Speed <output class="sw__speed-value" data-speed-out>1.5&#215;</output>
+      </span>
+      <!-- value must match --speed in the stylesheet below -->
+      <input
+        class="sw__speed-range"
+        type="range"
+        min="0.5"
+        max="4"
+        step="0.1"
+        value="1.5"
+        data-action="speed"
+        aria-label="Playback speed"
+      />
+    </label>
+  </div>
+
+  {audioSrc && (
+    <div class="sw__controls">
+      <button class="sw__btn" type="button" data-action="sound" aria-pressed="false">
+        <span data-sound-label>Play with sound</span>
+      </button>
+    </div>
+  )}
+
+  {audioSrc && <audio class="sw__audio" src={audioSrc} preload="none"></audio>}
+</section>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Anton&family=News+Cycle:wght@400;700&display=swap');
+
+  /* Star Jedi, the logo face itself. Uppercase only, which the title already is. */
+  @font-face {
+    font-family: 'Star Jedi';
+    src: url('/fonts/Starjedi.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  .sw {
+    /* ---- Timing. The title lands right as the story finishes. ----
+       --speed re-times the whole sequence at once; raise it to go faster. */
+    --speed: 1.5;
+    --t-crawl-delay: calc(0.8s / var(--speed));
+    --t-crawl: calc(38s / var(--speed));
+    --t-title-delay: calc(22s / var(--speed));
+    --t-title: calc(24s / var(--speed));
+    /* Inside the title's own timeline: it travels until 70%, flattens by 92%. */
+
+    /* ---- Geometry. Both planes share a tilt and an eye point; only the
+       focal length differs (see --crawl-perspective). ----
+       Change --tilt and --title-tan together: --title-tan is tan(--tilt). */
+    --tilt: 34deg;
+    --title-tan: 0.6745;
+    --perspective: 420px;
+    --vanish: 45%;
+
+    /* The story gets a shorter focal length than the title, so its plane
+       converges hard: text shrinks toward the vanishing point instead of
+       being faded out while it is still big. In vh so the horizon lands at
+       the same place on any viewport (it sits at --vanish minus
+       --crawl-perspective / tan(--tilt), which is off the top by a hair).
+       The title keeps --perspective: its travel is tuned against that. */
+    --crawl-perspective: 35vh;
+
+    /* Story travel, as a % of the crawl block's own height. Far enough that
+       the last line climbs all the way to the vanishing point and out; the
+       plane does the shrinking, so there is no translateZ any more. Pushing
+       the block back along the plane normal would drag it DOWN the screen,
+       away from the vanishing point, which is the opposite of what we want. */
+    --crawl-from: 105%;
+    --crawl-to: -200%;
+
+    /* Title travel: starts fully below the screen, arrives dead centre.
+       Translating down the tilted plane also swings the title toward the
+       camera, which magnifies it enough to peek back over the bottom edge.
+       --title-from-z is exactly -tan(--tilt) of the travel, which cancels
+       that out: the start sits at scale 1, so it clears the edge at any
+       viewport height. --title-depth is how far back it has drifted by the
+       time it lands at centre. */
+    --title-from: 90vh;
+    --title-from-z: calc(var(--title-from) * var(--title-tan) * -1);
+    --title-depth: -250px;
+    --title-rest: -7vh; /* final offset, leaves room for the tagline below */
+
+    /* Star Jedi is the logo lettering itself, so it is set undistorted.
+       These stay as knobs, but stretching this face fights it: the y value
+       is what overflowed the 0.95 line advance and made the two words
+       collide. Raise --title-leading before reaching for --title-stretch-y. */
+    --title-stretch-x: 1;
+    --title-stretch-y: 1;
+    --title-leading: 0.92;
+
+    /* ---- Colour ---- */
+    --yellow: #feda4a;
+    --title-color-end: #4bd5ee;
+
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    height: 100svh;
+    overflow: hidden;
+    background: #000;
+    isolation: isolate;
+  }
+
+  .sw__stars {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+  }
+
+  /* ---------- Beat 1: the story crawl ---------- */
+
+  .sw__viewport {
+    position: absolute;
+    inset: 0;
+    z-index: 2; /* above the title, so the story passes in front of it */
+    overflow: hidden;
+    pointer-events: none;
+    perspective: var(--crawl-perspective);
+    perspective-origin: 50% var(--vanish);
+    /* Not the old fade-out — the cut sits up near the vanishing point, where
+       the plane has already shrunk text to about a quarter size, so it only
+       clears the sub-pixel mush that would otherwise pile up on the horizon. */
+    -webkit-mask-image: linear-gradient(to top, #000 0%, #000 74%, rgba(0, 0, 0, 0) 85%);
+    mask-image: linear-gradient(to top, #000 0%, #000 74%, rgba(0, 0, 0, 0) 85%);
+  }
+
+  .sw__crawl {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    width: min(88vw, 760px);
+    transform-origin: 50% 100%;
+    transform: rotateX(var(--tilt)) translateY(var(--crawl-from));
+    will-change: transform;
+    color: var(--yellow);
+    font-family: 'News Cycle', 'Franklin Gothic Medium', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: clamp(1.2rem, 4.2vw, 2.3rem);
+    line-height: 1.45;
+    text-align: justify;
+    text-shadow: 0 0 22px rgba(254, 218, 74, 0.22);
+    opacity: 0;
+  }
+
+  .sw.is-playing .sw__crawl {
+    animation: sw-crawl var(--t-crawl) linear var(--t-crawl-delay) both;
+  }
+
+  /* Opacity is pinned at 1 the whole way. The story leaves by receding, not
+     by fading: it shrinks as it climbs the plane and converges on the
+     vanishing point, and is a few pixels tall by the time the mask takes it. */
+  @keyframes sw-crawl {
+    0% {
+      opacity: 1;
+      transform: rotateX(var(--tilt)) translateY(var(--crawl-from));
+    }
+    100% {
+      opacity: 1;
+      transform: rotateX(var(--tilt)) translateY(var(--crawl-to));
+    }
+  }
+
+  .sw__crawl p { margin: 0 0 1.2em; }
+  .sw__crawl p:last-child { margin-bottom: 0; }
+
+  .sw__episode,
+  .sw__subtitle {
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .sw__episode { letter-spacing: 0.12em; }
+
+  .sw__subtitle {
+    margin-bottom: 2em;
+    letter-spacing: 0.06em;
+  }
+
+  .sw__names {
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.7em;
+    margin-top: 2em;
+  }
+
+  /* ---------- Beat 2: TECH TEAM ---------- */
+
+  .sw__title-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    perspective: var(--perspective);
+    perspective-origin: 50% var(--vanish);
+  }
+
+  .sw__title {
+    margin: 0;
+    text-align: center;
+    font-family: 'Star Jedi', 'Anton', 'Haettenschweiler', 'Arial Narrow', sans-serif;
+    font-weight: 400;
+    font-size: min(24vw, 24vh);
+    line-height: var(--title-leading);
+    letter-spacing: 0.04em;
+    text-indent: 0.04em; /* balance out the trailing letter-space */
+    color: var(--yellow);
+    text-shadow: 0 0 34px rgba(254, 218, 74, 0.25);
+    opacity: 0;
+    will-change: transform, color;
+    transition: transform 0.5s ease, color 0.5s ease, text-shadow 0.5s ease;
+  }
+
+  /* Undistorted by default; see --title-stretch-x/y */
+  .sw__title-line {
+    display: block;
+    transform: scale(var(--title-stretch-x), var(--title-stretch-y));
+  }
+
+  .sw.is-playing .sw__title {
+    animation: sw-title var(--t-title) var(--t-title-delay) both;
+  }
+
+  @keyframes sw-title {
+    /* Riding up the crawl plane behind the story, drifting away from camera */
+    0% {
+      animation-timing-function: linear;
+      opacity: 1;
+      color: var(--yellow);
+      text-shadow: 0 0 34px rgba(254, 218, 74, 0.25);
+      transform: rotateX(var(--tilt)) translateY(var(--title-from)) translateZ(var(--title-from-z));
+    }
+    /* Arrived at screen centre, still lying back on the plane */
+    70% {
+      animation-timing-function: cubic-bezier(0.22, 0.8, 0.24, 1);
+      opacity: 1;
+      color: var(--yellow);
+      text-shadow: 0 0 34px rgba(254, 218, 74, 0.25);
+      transform: rotateX(var(--tilt)) translateY(-14.5vh) translateZ(var(--title-depth));
+    }
+    /* Flattened square to the camera, and a different colour */
+    92%,
+    100% {
+      opacity: 1;
+      color: var(--title-color-end);
+      text-shadow: 0 0 60px rgba(75, 213, 238, 0.45);
+      transform: rotateX(0deg) translateY(var(--title-rest)) translateZ(0);
+    }
+  }
+
+  /* Resting state — also where "Skip" lands you */
+  .sw.is-done .sw__title {
+    opacity: 1;
+    color: var(--title-color-end);
+    text-shadow: 0 0 60px rgba(75, 213, 238, 0.45);
+    transform: rotateX(0deg) translateY(var(--title-rest)) translateZ(0);
+  }
+
+  /* ---------- Outro ---------- */
+
+  .sw__outro {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 12vh;
+    z-index: 3;
+    padding: 0 1rem;
+    text-align: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 1.2s ease;
+  }
+
+  .sw.is-done .sw__outro {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .sw__tagline {
+    margin: 0;
+    color: var(--title-color-end);
+    font-family: 'News Cycle', system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.5em;
+    text-indent: 0.5em;
+    font-size: clamp(0.75rem, 1.6vw, 1.05rem);
+    text-transform: uppercase;
+  }
+
+  .sw__actions { margin-top: 1.4rem; }
+  .sw__actions:empty { display: none; }
+
+  /* ---------- Controls ---------- */
+
+  .sw__controls {
+    position: absolute;
+    right: clamp(0.75rem, 2vw, 1.75rem);
+    bottom: clamp(0.75rem, 2vw, 1.75rem);
+    z-index: 5;
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .sw__hud {
+    position: absolute;
+    right: clamp(0.75rem, 2vw, 1.75rem);
+    top: clamp(0.75rem, 2vw, 1.75rem);
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.6rem;
+  }
+
+  .sw__btn {
+    background: transparent;
+    border: 1px solid rgba(254, 218, 74, 0.35);
+    border-radius: 999px;
+    color: rgba(254, 218, 74, 0.75);
+    font-family: 'News Cycle', system-ui, sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 0.45rem 0.95rem;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+  }
+
+  .sw__btn:hover,
+  .sw__btn:focus-visible {
+    color: #000;
+    background: var(--yellow);
+    border-color: var(--yellow);
+  }
+
+  /* ---------- Speed dial ---------- */
+
+  .sw__speed {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.3rem;
+    width: clamp(7rem, 14vw, 9.5rem);
+    color: rgba(254, 218, 74, 0.75);
+    font-family: 'News Cycle', system-ui, sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .sw__speed-head {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  .sw__speed-value {
+    color: var(--yellow);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sw__speed-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 0.9rem;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  /* Track and thumb need vendor twins — the shorthands are not shared. */
+  .sw__speed-range::-webkit-slider-runnable-track {
+    height: 2px;
+    border-radius: 2px;
+    background: rgba(254, 218, 74, 0.35);
+  }
+
+  .sw__speed-range::-moz-range-track {
+    height: 2px;
+    border-radius: 2px;
+    background: rgba(254, 218, 74, 0.35);
+  }
+
+  .sw__speed-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 0.7rem;
+    height: 0.7rem;
+    margin-top: -0.3rem; /* centre the thumb on the 2px track */
+    border-radius: 50%;
+    border: none;
+    background: var(--yellow);
+    transition: transform 0.15s;
+  }
+
+  .sw__speed-range::-moz-range-thumb {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 50%;
+    border: none;
+    background: var(--yellow);
+    transition: transform 0.15s;
+  }
+
+  .sw__speed-range:hover::-webkit-slider-thumb { transform: scale(1.25); }
+  .sw__speed-range:hover::-moz-range-thumb { transform: scale(1.25); }
+
+  .sw__speed-range:focus-visible {
+    outline: 1px solid var(--yellow);
+    outline-offset: 0.35rem;
+    border-radius: 999px;
+  }
+
+  /* One button in the top-right slot at a time, and the dial only while
+     there is something running for it to re-time. Its value is kept, so a
+     Replay picks up at whatever speed was last dialled in. */
+  .sw:not(.is-playing) .sw__btn[data-action='skip'] { display: none; }
+  .sw.is-playing .sw__btn[data-action='replay'] { display: none; }
+  .sw:not(.is-playing) .sw__speed { display: none; }
+
+  /* ---------- Reduced motion ---------- */
+
+  @media (prefers-reduced-motion: reduce) {
+    .sw__viewport { display: none; }
+
+    .sw__title {
+      transition: none;
+      opacity: 1;
+    }
+
+    .sw__outro { transition: none; }
+
+    .sw__controls { display: none; }
+    .sw__hud { display: none; }
+  }
+</style>
+
+<script>
+  function initStarWarsHero() {
+    const root = document.getElementById('tech-team-hero');
+    if (!root || root.dataset.ready === 'true') return;
+    root.dataset.ready = 'true';
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    /* ---- Starfield: the field rushes past the camera at warp ---- */
+    const canvas = root.querySelector('.sw__stars') as HTMLCanvasElement | null;
+    const ctx = canvas ? canvas.getContext('2d') : null;
+
+    if (canvas && ctx) {
+      type Star = { x: number; y: number; z: number };
+      const DEPTH = 2000; // how far back the field is seeded
+      const FOCAL = 300; // projection distance; larger spreads stars wider
+      const WARP = 5; // units of depth travelled per frame
+      let stars: Star[] = [];
+      let w = 0;
+      let h = 0;
+      let rafId = 0;
+
+      const place = (s: Star, z: number) => {
+        s.x = (Math.random() - 0.5) * DEPTH;
+        s.y = (Math.random() - 0.5) * DEPTH;
+        s.z = z;
+      };
+
+      const seed = () => {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        w = canvas.clientWidth;
+        h = canvas.clientHeight;
+        canvas.width = Math.round(w * dpr);
+        canvas.height = Math.round(h * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, w, h);
+
+        const count = w < 768 ? 200 : 450;
+        stars = Array.from({ length: count }, () => {
+          const s: Star = { x: 0, y: 0, z: 0 };
+          place(s, Math.random() * DEPTH + 1);
+          return s;
+        });
+      };
+
+      const paint = (advance: boolean) => {
+        if (advance) {
+          // Painting black at low alpha rather than clearing leaves trails.
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        } else {
+          ctx.fillStyle = '#000';
+        }
+        ctx.fillRect(0, 0, w, h);
+
+        const cx = w / 2;
+        const cy = h / 2;
+        ctx.fillStyle = '#fff';
+
+        for (const s of stars) {
+          if (advance) {
+            s.z -= WARP;
+            if (s.z <= 1) place(s, DEPTH);
+          }
+          const k = FOCAL / s.z;
+          const px = cx + s.x * k;
+          const py = cy + s.y * k;
+          if (px < 0 || px > w || py < 0 || py > h) continue;
+          ctx.globalAlpha = Math.min(1, k * 1.6);
+          ctx.beginPath();
+          ctx.arc(px, py, Math.max(0.12, 2.2 * k), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      };
+
+      const loop = () => {
+        paint(true);
+        rafId = requestAnimationFrame(loop);
+      };
+
+      seed();
+
+      if (reduced) {
+        paint(false); // a still field, no rush
+      } else {
+        loop();
+      }
+
+      let resizeTimer = 0;
+      window.addEventListener('resize', () => {
+        window.clearTimeout(resizeTimer);
+        resizeTimer = window.setTimeout(() => {
+          seed();
+          if (reduced) paint(false);
+        }, 150);
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (reduced) return;
+        if (document.hidden) {
+          cancelAnimationFrame(rafId);
+        } else {
+          rafId = requestAnimationFrame(loop);
+        }
+      });
+    }
+
+    /* ---- Sequence control ---- */
+    const title = root.querySelector('.sw__title');
+    const audio = root.querySelector('.sw__audio') as HTMLAudioElement | null;
+    const soundBtn = root.querySelector('[data-action="sound"]');
+    const soundLabel = root.querySelector('[data-sound-label]');
+
+    const finish = () => {
+      root.classList.remove('is-playing');
+      root.classList.add('is-done');
+    };
+
+    const play = () => {
+      root.classList.remove('is-done', 'is-playing');
+      void root.offsetWidth; // force a reflow so the animations restart
+      root.classList.add('is-playing');
+    };
+
+    // The title is the last thing to settle, so it owns the end of the sequence.
+    if (title) title.addEventListener('animationend', finish);
+
+    const skipBtn = root.querySelector('[data-action="skip"]');
+    if (skipBtn) {
+      skipBtn.addEventListener('click', () => {
+        if (audio) audio.pause();
+        finish();
+      });
+    }
+
+    /* The slider drives --speed, which every duration in the stylesheet
+       divides by, so one value re-times the whole sequence. The audio is
+       retimed to match so a fanfare stays lined up with the visuals. */
+    const speedRange = root.querySelector('[data-action="speed"]') as HTMLInputElement | null;
+    const speedOut = root.querySelector('[data-speed-out]');
+
+    if (speedRange) {
+      const applySpeed = () => {
+        const v = Number(speedRange.value);
+        root.style.setProperty('--speed', String(v));
+        if (speedOut) speedOut.textContent = v.toFixed(1) + '×';
+        // playbackRate is clamped to what the browser will resample cleanly
+        if (audio) audio.playbackRate = Math.min(4, Math.max(0.5, v));
+      };
+      speedRange.addEventListener('input', applySpeed);
+      applySpeed();
+    }
+
+    const replayBtn = root.querySelector('[data-action="replay"]');
+    if (replayBtn) {
+      replayBtn.addEventListener('click', () => {
+        if (audio && soundBtn && soundBtn.getAttribute('aria-pressed') === 'true') {
+          audio.currentTime = 0;
+          audio.play().catch(() => {});
+        }
+        play();
+      });
+    }
+
+    if (audio && soundBtn) {
+      soundBtn.addEventListener('click', () => {
+        const on = soundBtn.getAttribute('aria-pressed') === 'true';
+        if (on) {
+          audio.pause();
+          soundBtn.setAttribute('aria-pressed', 'false');
+          if (soundLabel) soundLabel.textContent = 'Play with sound';
+        } else {
+          audio.currentTime = 0;
+          audio.play().catch(() => {});
+          soundBtn.setAttribute('aria-pressed', 'true');
+          if (soundLabel) soundLabel.textContent = 'Mute';
+          play(); // restart the visuals so they line up with the music
+        }
+      });
+    }
+
+    if (reduced) {
+      finish();
+    } else {
+      play();
+    }
+  }
+
+  initStarWarsHero();
+  document.addEventListener('astro:page-load', initStarWarsHero);
+</script>
