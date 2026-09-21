@@ -375,8 +375,7 @@ const looks = [
       const call = () => {
         if (called) return;
         called = true;
-        const crew = card.closest<HTMLElement>('[data-crew]');
-        if (crew?.dataset.skin === 'homage' && !card.classList.contains('is-flipped')) {
+        if (!card.classList.contains('is-flipped')) {
           card.querySelector<HTMLButtonElement>('[data-card-flip]')?.click();
         }
         card.classList.remove('is-called');
