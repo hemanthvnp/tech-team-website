@@ -7,6 +7,14 @@
 // opens on the first. Credits name crew members exactly as src/data/crew.ts
 // spells them, and a name that matches links to that person's card.
 
+/**
+ * The domain a project belongs to. The Galaxy Map skin groups the chart
+ * into one sector per domain, so keep this list short: four is plenty.
+ */
+export const sectors = ['Web', 'AI/ML', 'Mobile', 'Hardware'] as const;
+
+export type Sector = (typeof sectors)[number];
+
 export interface Credit {
   name: string;
   /** What they did on this project, e.g. "Backend" */
@@ -29,6 +37,8 @@ export interface Project {
   name: string;
   /** The year it shipped */
   year: string;
+  /** Its domain. Sets which sector of the Galaxy Map it sits in. */
+  sector: Sector;
   /** One line: what it does */
   summary: string;
   /** One or two sentences: how it works, or how it came to be */
@@ -61,6 +71,7 @@ export const projects: Project[] = [
     slug: 'rollcall',
     name: 'Rollcall',
     year: '2024',
+    sector: 'Web',
     summary: 'Attendance that takes itself: the room checks in from their phones and the register fills in live.',
     story:
       'Built for the inter-college finals and kept running after them. A code on the projector changes every few seconds, so nobody checks in from the canteen.',
@@ -84,6 +95,7 @@ export const projects: Project[] = [
     slug: 'backtrack',
     name: 'Backtrack',
     year: '2024',
+    sector: 'AI/ML',
     summary: 'The campus lost and found: report what you lost, get matched with what was handed in, collect it from the desk.',
     story:
       'Shipped overnight at a 24-hour hackathon. The security desk photographs every item as it comes in, and each report is checked against them by place and time.',
@@ -106,6 +118,7 @@ export const projects: Project[] = [
     slug: 'token',
     name: 'Token',
     year: '2025',
+    sector: 'Mobile',
     summary: 'Canteen pre-orders: order from class, get a token number, walk down when it is called.',
     story:
       'The lunch queue used to eat half the break. Now the kitchen works through orders as they come in, and the board by the counter calls each token when it is ready.',
@@ -127,6 +140,7 @@ export const projects: Project[] = [
     slug: 'labslot',
     name: 'Labslot',
     year: '2026',
+    sector: 'Hardware',
     summary: 'Book a machine in any lab: see which are free right now and take an hour-long slot.',
     story:
       'Final-year projects kept colliding over the same GPU machines. Labslot puts every lab on one floor plan and gives each machine a day of hour-long slots.',

@@ -1,0 +1,926 @@
+---
+// src/components/projects/GalaxyMap.astro
+// Projects skin: a star chart of everything the team has shipped. Each
+// project is a world, and the worlds are grouped into sectors by domain —
+// Web, AI/ML, Mobile, Hardware — one ringed zone per sector. Pick a world
+// and the chart flies into it: the map zooms about that point and the
+// world's dossier opens beside it, with the crew who built it as its
+// survey party.
+//
+// Where the worlds sit is worked out here, at build time, from how many
+// sectors are in use and how many projects each holds, so the chart stays
+// legible whether the team ships three projects or a dozen.
+//
+// Without JS the chart is put away and every dossier is shown, one after
+// another. With reduced motion nothing drifts and the flight is a cut.
+import { projects, sectors, host, type Project, type Sector } from '../../data/projects';
+import { crewHref } from '../../data/crew';
+
+/* ---- The sectors actually in use, in the order src/data/projects.ts lists them ---- */
+const used = sectors.filter((s) => projects.some((p) => p.sector === s));
+const inSector = (s: Sector) => projects.filter((p) => p.sector === s);
+
+/* Where each sector's zone sits on the chart, in % of it. A sector is a
+   circle of worlds, so the zones are spread to leave room between them. */
+const zonesBy: Record<number, { x: number; y: number; r: number }[]> = {
+  1: [{ x: 50, y: 50, r: 30 }],
+  2: [{ x: 29, y: 50, r: 24 }, { x: 71, y: 50, r: 24 }],
+  3: [{ x: 28, y: 33, r: 21 }, { x: 72, y: 32, r: 21 }, { x: 50, y: 76, r: 21 }],
+  4: [{ x: 27, y: 30, r: 19 }, { x: 73, y: 28, r: 19 }, { x: 25, y: 73, r: 19 }, { x: 74, y: 72, r: 19 }],
+};
+
+/** Sectors past four ring the middle rather than take a quadrant each */
+const zoneFor = (i: number, n: number) => {
+  const fixed = zonesBy[n];
+  if (fixed) return fixed[i];
+  const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+  return { x: 50 + Math.cos(a) * 30, y: 50 + Math.sin(a) * 30, r: Math.min(17, 150 / n) };
+};
+
+/** A world's place inside its zone: alone in the middle, otherwise on a ring */
+const orbit = (k: number, n: number, zone: { x: number; y: number; r: number }, spin: number) => {
+  if (n === 1) return { x: zone.x, y: zone.y };
+  const a = (k / n) * Math.PI * 2 + spin;
+  const r = zone.r * 0.58;
+  return { x: zone.x + Math.cos(a) * r, y: zone.y + Math.sin(a) * r * 0.86 };
+};
+
+/* Sizes cycle so neighbouring worlds are never twins, and the designation
+   is just the year and the project's place in the list. */
+const sizes = [1, 0.84, 1.14, 0.92, 1.05];
+
+interface World {
+  p: Project;
+  sector: Sector;
+  s: number; // which sector, for the swatch colour
+  x: number;
+  y: number;
+  size: number;
+  code: string;
+}
+
+const worlds: World[] = [];
+const zones = used.map((sector, s) => {
+  const zone = zoneFor(s, used.length);
+  const here = inSector(sector);
+  here.forEach((p, k) => {
+    const place = orbit(k, here.length, zone, s * 0.9);
+    worlds.push({
+      p,
+      sector,
+      s,
+      x: Math.round(place.x * 10) / 10,
+      y: Math.round(place.y * 10) / 10,
+      size: sizes[projects.indexOf(p) % sizes.length],
+      code: `TT-${p.year}-${String(projects.indexOf(p) + 1).padStart(2, '0')}`,
+    });
+  });
+  return { sector, s, zone, count: here.length };
+});
+
+/* The chart is drawn in order of the project list, not of the sectors, so
+   the arrow keys walk the worlds the way the data does. */
+const order = worlds
+  .map((w, i) => ({ w, i }))
+  .sort((a, b) => projects.indexOf(a.w.p) - projects.indexOf(b.w.p));
+---
+
+<div class="gx" data-gx>
+  <div class="gx__chart" data-gx-chart>
+    <div class="gx__drift" aria-hidden="true"><canvas class="gx__stars" data-gx-stars></canvas></div>
+    <div class="gx__grid" aria-hidden="true"></div>
+
+    <div class="gx__space" data-gx-space>
+      {zones.map(({ sector, s, zone, count }) => (
+        <div
+          class="gx__zone"
+          data-s={s}
+          style={`--x: ${zone.x}%; --y: ${zone.y}%; --r: ${zone.r}%`}
+        >
+          <span class="gx__zone-ring" aria-hidden="true"></span>
+          <span class="gx__zone-name">
+            {sector} <span class="gx__zone-count">{count}</span>
+          </span>
+        </div>
+      ))}
+
+      {order.map(({ w, i }) => (
+        <button
+          class="gx__world"
+          type="button"
+          data-gx-world={i}
+          data-s={w.s}
+          style={`--x: ${w.x}%; --y: ${w.y}%; --size: ${w.size}`}
+          aria-controls="gx-dossier"
+          aria-expanded="false"
+        >
+          <span class="gx__orbit" aria-hidden="true"></span>
+          <span class="gx__body" aria-hidden="true"></span>
+          <span class="gx__tag">
+            <span class="gx__tag-name">{w.p.name}</span>
+            <span class="gx__tag-code">{w.code} · {w.sector}</span>
+          </span>
+        </button>
+      ))}
+    </div>
+
+    <p class="gx__hud" aria-hidden="true">
+      <span>Star chart · {worlds.length} worlds · {used.length} sectors</span>
+      <span class="gx__hud-state" data-gx-state>Pick a world</span>
+    </p>
+
+  </div>
+
+  <button class="gx__out" type="button" data-gx-out hidden>
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 6 9 12l6 6" /></svg>
+    Back to chart
+  </button>
+
+  <div class="gx__dossiers" id="gx-dossier" data-gx-dossiers>
+    {order.map(({ w, i }) => (
+      <article class="gx__dossier" data-gx-panel={i} aria-labelledby={`gx-${w.p.slug}`} data-s={w.s}>
+        <p class="gx__crumb">
+          <span class="gx__dot" aria-hidden="true"></span>
+          {w.sector} sector · {w.code}
+        </p>
+
+        <h3 class="gx__name" id={`gx-${w.p.slug}`} tabindex="-1">
+          {w.p.name} <span class="gx__year">{w.p.year}</span>
+        </h3>
+
+        <div class="gx__media">
+          {w.p.recording ? (
+            <video data-reel src={w.p.recording} poster={w.p.screen} muted loop playsinline preload="none" aria-label={w.p.screenAlt}></video>
+          ) : (
+            <img src={w.p.screen} alt={w.p.screenAlt} loading="lazy" decoding="async" />
+          )}
+        </div>
+
+        <p class="gx__summary">{w.p.summary}</p>
+        <p class="gx__story">{w.p.story}</p>
+
+        <p class="gx__label" id={`gx-party-${w.p.slug}`}>Survey party</p>
+        <ul class="gx__party" aria-labelledby={`gx-party-${w.p.slug}`}>
+          {w.p.credits.map((c) => {
+            const href = crewHref(c.name);
+            return (
+              <li>
+                {href ? (
+                  <a class="gx__who" href={href} data-crew-link>{c.name}</a>
+                ) : (
+                  <span class="gx__who">{c.name}</span>
+                )}
+                <span class="gx__part">{c.part}</span>
+              </li>
+            );
+          })}
+        </ul>
+
+        <a class="gx__go" href={w.p.url} target="_blank" rel="noopener">
+          <span class="gx__go-main">Make planetfall</span>
+          <span class="gx__go-sub">{host(w.p.url)}</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 17 17 7M9 7h8v8" /></svg>
+        </a>
+      </article>
+    ))}
+  </div>
+</div>
+
+<style>
+  .gx {
+    --yellow: #feda4a;
+    --yellow-dim: rgba(254, 218, 74, 0.74);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+    container: gx / inline-size;
+    position: relative;
+    box-sizing: border-box;
+    max-width: 76rem;
+    margin: 0 auto;
+    padding: 0 clamp(1rem, 4vw, 2.5rem);
+  }
+
+  /* One colour per sector, in the order src/data/projects.ts lists them */
+  [data-s='0'] { --glow: #feda4a; }
+  [data-s='1'] { --glow: #4bd5ee; }
+  [data-s='2'] { --glow: #ff9042; }
+  [data-s='3'] { --glow: #b39bff; }
+  [data-s='4'] { --glow: #7ee3a6; }
+
+  /* ---------- The chart ---------- */
+
+  .gx__chart {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 16 / 10;
+    max-height: min(74vh, 40rem);
+    border: 1px solid rgba(254, 218, 74, 0.2);
+    border-radius: 0.9rem;
+    background:
+      radial-gradient(ellipse 75% 60% at 50% 45%, rgba(254, 218, 74, 0.05), transparent 70%),
+      #05050a;
+    box-shadow: inset 0 0 6rem rgba(0, 0, 0, 0.9);
+  }
+
+  @container gx (max-width: 34rem) {
+    .gx__chart { aspect-ratio: 4 / 5; }
+  }
+
+  /* Stars, drawn once and left to drift */
+  .gx__drift {
+    position: absolute;
+    inset: -4%;
+    animation: gx-drift 90s linear infinite alternate;
+  }
+
+  .gx__stars {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  @keyframes gx-drift {
+    from { transform: translate3d(-1.2%, 0.8%, 0); }
+    to { transform: translate3d(1.2%, -0.8%, 0); }
+  }
+
+  /* The chart's own rules, faded off at the edges */
+  .gx__grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(to right, rgba(75, 213, 238, 0.11) 0 1px, transparent 1px 8.3333%),
+      repeating-linear-gradient(to bottom, rgba(75, 213, 238, 0.11) 0 1px, transparent 1px 12.5%);
+    mask-image: radial-gradient(ellipse 62% 62% at 50% 50%, #000 40%, transparent 85%);
+  }
+
+  /* ---------- The flight into a world ---------- */
+
+  .gx__space {
+    /* Where a picked world is brought to. It shifts left of centre once the
+       dossier takes the right of the chart. */
+    --cx: 50%;
+    --fx: 50%;
+    --fy: 50%;
+    --fs: 1;
+    --inv: 1;
+
+    position: absolute;
+    inset: 0;
+    /* Bring the picked world (--fx, --fy) to (--cx, 50%) and blow it up to
+       --fs, about the middle of the chart. */
+    transform:
+      translate(
+        calc((var(--cx) - 50%) - (var(--fx) - 50%) * var(--fs)),
+        calc(0% - (var(--fy) - 50%) * var(--fs))
+      )
+      scale(var(--fs));
+    transition: transform 0.9s var(--ease-out);
+  }
+
+  /* Zoomed in on a wide chart the dossier takes the right, so the world it
+     describes is brought to the left of the middle rather than the middle. */
+  @container gx (min-width: 50rem) {
+    .gx.is-open .gx__space { --cx: 31%; }
+  }
+
+  /* ---------- Sector zones ---------- */
+
+  .gx__zone {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: calc(var(--r) * 2);
+    height: calc(var(--r) * 2);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  .gx__zone-ring {
+    position: absolute;
+    inset: 0;
+    border: 1px dashed color-mix(in srgb, var(--glow) 30%, transparent);
+    border-radius: 50%;
+    background: radial-gradient(circle, color-mix(in srgb, var(--glow) 7%, transparent), transparent 72%);
+    animation: gx-spin 180s linear infinite;
+  }
+
+  .gx__zone:nth-of-type(even) .gx__zone-ring { animation-direction: reverse; }
+
+  @keyframes gx-spin {
+    to { transform: rotate(1turn); }
+  }
+
+  .gx__zone-name {
+    position: absolute;
+    bottom: calc(100% + 0.4rem);
+    left: 50%;
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    color: color-mix(in srgb, var(--glow) 78%, transparent);
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transform: translateX(-50%) scale(var(--inv));
+    transform-origin: 50% 100%;
+    transition: opacity 0.4s;
+  }
+
+  .gx__zone-count {
+    padding: 0.05rem 0.3rem;
+    border: 1px solid color-mix(in srgb, var(--glow) 32%, transparent);
+    border-radius: 999px;
+    font-size: 0.56rem;
+    letter-spacing: 0.1em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Once you are down among the worlds, the sector names get out of the way */
+  .gx.is-open .gx__zone-name { opacity: 0; }
+
+  /* ---------- A world ---------- */
+
+  .gx__world {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    display: grid;
+    place-items: center;
+    width: calc(var(--size) * 4.4cqi);
+    height: calc(var(--size) * 4.4cqi);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+  }
+
+  .gx__orbit {
+    position: absolute;
+    inset: -58%;
+    border: 1px solid color-mix(in srgb, var(--glow) 26%, transparent);
+    border-radius: 50%;
+    transform: rotateX(68deg) rotate(-18deg);
+    transition: border-color 0.3s, transform 0.5s var(--ease-out);
+  }
+
+  .gx__body {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-color: var(--glow);
+    background-image:
+      radial-gradient(circle at 72% 76%, rgba(0, 0, 0, 0.94), rgba(0, 0, 0, 0.3) 46%, transparent 72%),
+      radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.7), transparent 48%);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+      0 0 1.6rem -0.2rem color-mix(in srgb, var(--glow) 70%, transparent);
+    transition: box-shadow 0.35s, transform 0.5s var(--ease-out);
+  }
+
+  .gx__world:hover .gx__body,
+  .gx__world:focus-visible .gx__body {
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+      0 0 2.6rem -0.1rem var(--glow);
+    transform: scale(1.06);
+  }
+
+  .gx__world:hover .gx__orbit,
+  .gx__world:focus-visible .gx__orbit {
+    border-color: color-mix(in srgb, var(--glow) 60%, transparent);
+    transform: rotateX(68deg) rotate(8deg);
+  }
+
+  .gx__world:focus-visible { outline-offset: 0.5rem; }
+
+  .gx__tag {
+    position: absolute;
+    top: calc(100% + 0.45rem);
+    left: 50%;
+    display: grid;
+    justify-items: center;
+    gap: 0.1rem;
+    white-space: nowrap;
+    transform: translateX(-50%) scale(var(--inv));
+    transform-origin: 50% 0;
+    transition: opacity 0.35s;
+  }
+
+  .gx__tag-name {
+    color: var(--yellow);
+    font-family: 'Anton', sans-serif;
+    font-size: 0.92rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .gx__tag-code {
+    color: color-mix(in srgb, var(--glow) 70%, transparent);
+    font-size: 0.56rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Zoomed in, only the world you are standing on keeps its name */
+  .gx.is-open .gx__world:not(.is-here) { opacity: 0.32; }
+  .gx.is-open .gx__world:not(.is-here) .gx__tag { opacity: 0; }
+
+  .gx__world.is-here .gx__body {
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.25),
+      0 0 3.2rem -0.2rem var(--glow);
+  }
+
+  /* ---------- Chart furniture ---------- */
+
+  .gx__hud {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.3rem 1rem;
+    margin: 0;
+    padding: 0.7rem 1rem;
+    background: linear-gradient(to top, rgba(5, 5, 10, 0.92), transparent);
+    color: rgba(254, 218, 74, 0.52);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .gx__hud-state { color: var(--yellow); }
+
+  .gx__out {
+    position: absolute;
+    top: 0.85rem;
+    left: calc(clamp(1rem, 4vw, 2.5rem) + 0.85rem);
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 2.4rem;
+    padding: 0 0.95rem 0 0.6rem;
+    border: 1px solid rgba(254, 218, 74, 0.4);
+    border-radius: 999px;
+    background: rgba(5, 5, 10, 0.82);
+    color: var(--yellow);
+    font-family: 'News Cycle', system-ui, sans-serif;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: border-color 0.2s, background-color 0.2s;
+  }
+
+  .gx__out[hidden] { display: none; }
+
+  .gx__out:hover {
+    border-color: var(--yellow);
+    background: rgba(254, 218, 74, 0.12);
+  }
+
+  .gx__out svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* ---------- The dossier ---------- */
+
+  .gx.is-live .gx__dossiers {
+    position: absolute;
+    top: 0;
+    right: clamp(1rem, 4vw, 2.5rem);
+    bottom: 0;
+    width: min(30rem, calc(100% - clamp(2rem, 8vw, 5rem)));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-left: 1px solid rgba(254, 218, 74, 0.18);
+    background: linear-gradient(to left, rgba(6, 6, 12, 0.97), rgba(6, 6, 12, 0.88));
+    backdrop-filter: blur(6px);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(2rem);
+    transition: opacity 0.45s, transform 0.65s var(--ease-out), visibility 0.65s;
+  }
+
+  .gx.is-live.is-open .gx__dossiers {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+
+  .gx.is-live .gx__dossier { display: none; }
+  .gx.is-live .gx__dossier.is-here { display: block; }
+
+  .gx__dossier {
+    box-sizing: border-box;
+    padding: 1.3rem clamp(1.1rem, 3cqi, 1.8rem) 2rem;
+  }
+
+  @container gx (max-width: 50rem) {
+    .gx.is-live .gx__dossier { padding-top: 4.1rem; }
+  }
+
+  .gx.is-live .gx__dossier.is-here > * { animation: gx-rise 0.6s var(--ease-out) backwards; }
+  .gx.is-live .gx__dossier.is-here > :nth-child(2) { animation-delay: 0.05s; }
+  .gx.is-live .gx__dossier.is-here > :nth-child(3) { animation-delay: 0.1s; }
+  .gx.is-live .gx__dossier.is-here > :nth-child(n + 4) { animation-delay: 0.15s; }
+
+  @keyframes gx-rise {
+    from { opacity: 0; transform: translateY(0.6rem); }
+  }
+
+  .gx__crumb {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0;
+    color: color-mix(in srgb, var(--glow) 82%, transparent);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .gx__dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--glow);
+    box-shadow: 0 0 0.6rem var(--glow);
+  }
+
+  .gx__name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.3rem 0.8rem;
+    margin: 0.45rem 0 0;
+    color: var(--yellow);
+    font-family: 'Anton', sans-serif;
+    font-weight: 400;
+    font-size: clamp(1.9rem, 5cqi, 2.5rem);
+    line-height: 1;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .gx__name:focus-visible { outline-offset: 0.35rem; }
+
+  .gx__year {
+    color: var(--yellow-dim);
+    font-family: 'News Cycle', system-ui, sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .gx__media {
+    overflow: hidden;
+    margin-top: 1.1rem;
+    border-radius: 5px;
+    background: #0e0e0e;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--glow) 22%, transparent);
+  }
+
+  .gx__media img,
+  .gx__media video {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .gx__summary {
+    margin: 1.1rem 0 0;
+    color: var(--yellow);
+    font-size: 1.02rem;
+    font-weight: 700;
+    line-height: 1.45;
+    text-wrap: pretty;
+  }
+
+  .gx__story {
+    margin: 0.65rem 0 0;
+    color: var(--yellow-dim);
+    font-size: 0.94rem;
+    line-height: 1.6;
+    text-wrap: pretty;
+  }
+
+  .gx__label {
+    margin: 1.5rem 0 0.6rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(254, 218, 74, 0.16);
+    color: rgba(254, 218, 74, 0.55);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .gx__party {
+    display: grid;
+    gap: 0.45rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .gx__party li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.3rem 0.7rem;
+  }
+
+  .gx__who {
+    color: var(--yellow);
+    font-size: 0.96rem;
+    font-weight: 700;
+  }
+
+  a.gx__who {
+    text-decoration: underline;
+    text-decoration-color: rgba(254, 218, 74, 0.35);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.28em;
+    transition: text-decoration-color 0.2s;
+  }
+
+  a.gx__who:hover { text-decoration-color: var(--yellow); }
+
+  .gx__part {
+    color: var(--yellow-dim);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .gx__go {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem 0.7rem;
+    margin-top: 1.6rem;
+    padding: 0.7rem 1rem 0.7rem 1.15rem;
+    border: 1px solid rgba(254, 218, 74, 0.55);
+    border-radius: 999px;
+    color: var(--yellow);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  }
+
+  .gx__go-sub {
+    color: var(--yellow-dim);
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    transition: color 0.2s;
+  }
+
+  .gx__go svg {
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.35s var(--ease-out);
+  }
+
+  .gx__go:hover {
+    border-color: var(--yellow);
+    background: var(--yellow);
+    color: #000;
+  }
+
+  .gx__go:hover .gx__go-sub { color: rgba(0, 0, 0, 0.7); }
+  .gx__go:hover svg { transform: translate(2px, -2px); }
+  .gx__go:focus-visible { outline-offset: 4px; }
+
+  /* ---------- Without JS: no chart, every dossier in full ---------- */
+
+  .gx:not(.is-live) .gx__chart { display: none; }
+
+  .gx:not(.is-live) .gx__dossiers {
+    display: grid;
+    gap: clamp(2.5rem, 7vh, 4.5rem);
+  }
+
+  .gx:not(.is-live) .gx__dossier {
+    padding: 2rem 0 0;
+    border-top: 1px solid rgba(254, 218, 74, 0.14);
+  }
+
+  /* ---------- Reduced motion: it all still works, none of it moves ---------- */
+
+  @media (prefers-reduced-motion: reduce) {
+    .gx__drift,
+    .gx__zone-ring { animation: none; }
+
+    .gx__space,
+    .gx.is-live .gx__dossiers { transition: none; }
+
+    .gx.is-live .gx__dossier.is-here > * { animation: none; }
+
+    .gx__world:hover .gx__body,
+    .gx__world:focus-visible .gx__body,
+    .gx__go:hover svg { transform: none; }
+
+    .gx__world:hover .gx__orbit,
+    .gx__world:focus-visible .gx__orbit { transform: rotateX(68deg) rotate(-18deg); }
+  }
+</style>
+
+<script>
+  function initGalaxy() {
+    const gx = document.querySelector<HTMLElement>('[data-gx]');
+    if (!gx || gx.dataset.ready === 'true') return;
+    gx.dataset.ready = 'true';
+    gx.classList.add('is-live');
+
+    const chart = gx.querySelector<HTMLElement>('[data-gx-chart]') as HTMLElement;
+    const space = gx.querySelector<HTMLElement>('[data-gx-space]') as HTMLElement;
+    const canvas = gx.querySelector<HTMLCanvasElement>('[data-gx-stars]') as HTMLCanvasElement;
+    const state = gx.querySelector<HTMLElement>('[data-gx-state]') as HTMLElement;
+    const out = gx.querySelector<HTMLButtonElement>('[data-gx-out]') as HTMLButtonElement;
+    const worlds = Array.from(gx.querySelectorAll<HTMLButtonElement>('[data-gx-world]'));
+    const panels = Array.from(gx.querySelectorAll<HTMLElement>('[data-gx-panel]'));
+    const sheet = gx.querySelector<HTMLElement>('[data-gx-dossiers]') as HTMLElement;
+
+    /* ---- The star field: drawn once per size, then left to drift in CSS ---- */
+    const ctx = canvas.getContext('2d');
+
+    const stars = () => {
+      if (!ctx) return;
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (!w || !h) return; // the skin is put away
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+
+      // Deterministic, so the chart is the same star field on every visit
+      let seed = 20260921;
+      const rnd = () => {
+        seed = (seed * 1664525 + 1013904223) % 4294967296;
+        return seed / 4294967296;
+      };
+
+      const count = Math.round((w * h) / 2600);
+      for (let i = 0; i < count; i++) {
+        const x = rnd() * w;
+        const y = rnd() * h;
+        const depth = rnd(); // far stars are small and dim, near ones bright
+        const r = 0.35 + depth * depth * 1.15;
+        ctx.globalAlpha = 0.16 + depth * 0.62;
+        ctx.fillStyle = depth > 0.94 ? '#ffe9b0' : depth > 0.72 ? '#dfeaff' : '#cfd6e6';
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // The brightest few get a glint
+        if (depth > 0.965) {
+          ctx.globalAlpha = 0.28;
+          ctx.strokeStyle = '#ffe9b0';
+          ctx.lineWidth = 0.6;
+          ctx.beginPath();
+          ctx.moveTo(x - r * 3.2, y);
+          ctx.lineTo(x + r * 3.2, y);
+          ctx.moveTo(x, y - r * 3.2);
+          ctx.lineTo(x, y + r * 3.2);
+          ctx.stroke();
+        }
+      }
+      ctx.globalAlpha = 1;
+    };
+
+    stars();
+    // Also covers the skin being switched back on, when it goes 0 -> sized
+    new ResizeObserver(stars).observe(canvas);
+
+    /* ---- Flying to a world, and back out again ---- */
+    const ZOOM = 2.9;
+    let at = -1;
+
+    const show = (i: number, move: boolean) => {
+      const world = worlds[i];
+      at = i;
+
+      space.style.setProperty('--fx', world.style.getPropertyValue('--x'));
+      space.style.setProperty('--fy', world.style.getPropertyValue('--y'));
+      space.style.setProperty('--fs', String(ZOOM));
+      space.style.setProperty('--inv', String(1 / ZOOM));
+
+      gx.classList.add('is-open');
+      out.hidden = false;
+      worlds.forEach((w, k) => {
+        w.classList.toggle('is-here', k === i);
+        w.setAttribute('aria-expanded', String(k === i));
+        w.tabIndex = k === i ? 0 : -1;
+      });
+      panels.forEach((p, k) => p.classList.toggle('is-here', k === i));
+
+      sheet.scrollTop = 0;
+      state.textContent = `Approaching ${world.querySelector('.gx__tag-name')?.textContent ?? ''}`;
+      if (move) {
+        const head = panels[i].querySelector<HTMLElement>('.gx__name');
+        requestAnimationFrame(() => head?.focus({ preventScroll: true }));
+      }
+    };
+
+    const close = (refocus: boolean) => {
+      if (!gx.classList.contains('is-open')) return;
+      gx.classList.remove('is-open');
+      out.hidden = true;
+      space.style.setProperty('--fx', '50%');
+      space.style.setProperty('--fy', '50%');
+      space.style.setProperty('--fs', '1');
+      space.style.setProperty('--inv', '1');
+      panels.forEach((p) => p.classList.remove('is-here'));
+      worlds.forEach((w, k) => {
+        w.classList.remove('is-here');
+        w.setAttribute('aria-expanded', 'false');
+        w.tabIndex = k === Math.max(at, 0) ? 0 : -1;
+      });
+      state.textContent = 'Pick a world';
+      if (refocus && at >= 0) worlds[at].focus({ preventScroll: true });
+    };
+
+    worlds.forEach((w, i) => {
+      w.tabIndex = i === 0 ? 0 : -1;
+      w.addEventListener('click', () => (at === i && gx.classList.contains('is-open') ? close(true) : show(i, true)));
+      w.addEventListener('keydown', (e) => {
+        const last = worlds.length - 1;
+        const to =
+          e.key === 'ArrowRight' || e.key === 'ArrowDown' ? (i === last ? 0 : i + 1)
+          : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? (i === 0 ? last : i - 1)
+          : e.key === 'Home' ? 0
+          : e.key === 'End' ? last
+          : -1;
+        if (to < 0) return;
+        e.preventDefault();
+        worlds[to].tabIndex = 0;
+        worlds[to].focus({ preventScroll: true });
+        // Walking the chart with the keyboard flies along with you
+        if (gx.classList.contains('is-open')) show(to, false);
+        else at = to;
+      });
+    });
+
+    out.addEventListener('click', () => close(true));
+
+    // Empty sky closes the dossier; the dossier itself and the worlds don't
+    chart.addEventListener('click', (e) => {
+      const el = e.target as Element;
+      if (el.closest('[data-gx-world]')) return;
+      close(true);
+    });
+
+    gx.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || !gx.classList.contains('is-open')) return;
+      e.preventDefault();
+      close(true);
+    });
+
+    // A crew credit takes you to the Crew section: let the chart go first
+    gx.addEventListener('click', (e) => {
+      if ((e.target as Element).closest('a[data-crew-link]')) close(false);
+    });
+
+    // Switching to another skin and back leaves the chart as you found it
+    document.querySelector('[data-projects]')?.addEventListener('projects:look', (e) => {
+      if ((e as CustomEvent).detail !== 'galaxy') close(false);
+      else stars();
+    });
+  }
+
+  initGalaxy();
+  document.addEventListener('astro:page-load', initGalaxy);
+</script>

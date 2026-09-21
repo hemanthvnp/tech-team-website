@@ -1,16 +1,17 @@
 ---
 // src/components/Projects.astro
-// The team's flagship projects, in four skins while the design is being
+// The team's flagship projects, in five skins while the design is being
 // decided, picked from the menu in the header:
 //
 //   Now Showing  each project a feature at a 1977 picture house
 //   Briefing     the war room: each project traced as vector plans
 //   Cutaway      each project a blueprint sheet with its parts labelled
+//   Galaxy Map   a star chart: one world per project, grouped into sectors
 //   Straight     the same content, no homage
 //
-// ?projects=briefing (or cutaway, straight) opens on that skin; otherwise
-// this browser's last pick. The menu is for the showcase: once a skin is
-// chosen, keep its component, delete the other three and the menu.
+// ?projects=briefing (or cutaway, galaxy, straight) opens on that skin;
+// otherwise this browser's last pick. The menu is for the showcase: once a
+// skin is chosen, keep its component, delete the other four and the menu.
 //
 // Every skin credits the crew by name. A name on this year's crew links to
 // their card in the Crew section, which turns over when you land on it.
@@ -18,6 +19,7 @@ import Section from './Section.astro';
 import NowShowing from './projects/NowShowing.astro';
 import Briefing from './projects/Briefing.astro';
 import Cutaway from './projects/Cutaway.astro';
+import GalaxyMap from './projects/GalaxyMap.astro';
 import Straight from './projects/Straight.astro';
 import { isSample } from '../data/projects';
 
@@ -25,6 +27,7 @@ const looks = [
   { id: 'showing', name: 'Now Showing', line: 'A 1977 picture house: the marquee, the screen, the billing block' },
   { id: 'briefing', name: 'Briefing', line: 'The war room: each project traced as vector plans, then launched' },
   { id: 'cutaway', name: 'Cutaway', line: 'A blueprint sheet per project, every part labelled with who built it' },
+  { id: 'galaxy', name: 'Galaxy Map', line: 'A star chart: one world per project, grouped into sectors you fly into' },
   { id: 'straight', name: 'Straight', line: 'The same projects, set plainly, no homage' },
 ];
 ---
@@ -36,7 +39,7 @@ const looks = [
       (function (el) {
         var look = new URLSearchParams(location.search).get('projects');
         try { look = look || localStorage.getItem('projects-look'); } catch (e) {}
-        if (/^(showing|briefing|cutaway|straight)$/.test(look || '')) el.dataset.look = look;
+        if (/^(showing|briefing|cutaway|galaxy|straight)$/.test(look || '')) el.dataset.look = look;
         el.classList.add('is-live');
       })(document.currentScript.parentElement);
     </script>
@@ -85,6 +88,7 @@ const looks = [
     <div class="projects__look" data-look-panel="showing"><NowShowing /></div>
     <div class="projects__look" data-look-panel="briefing"><Briefing /></div>
     <div class="projects__look" data-look-panel="cutaway"><Cutaway /></div>
+    <div class="projects__look" data-look-panel="galaxy"><GalaxyMap /></div>
     <div class="projects__look" data-look-panel="straight"><Straight /></div>
   </div>
 </Section>
@@ -101,6 +105,7 @@ const looks = [
   .projects:not([data-look='showing']) > [data-look-panel='showing'],
   .projects:not([data-look='briefing']) > [data-look-panel='briefing'],
   .projects:not([data-look='cutaway']) > [data-look-panel='cutaway'],
+  .projects:not([data-look='galaxy']) > [data-look-panel='galaxy'],
   .projects:not([data-look='straight']) > [data-look-panel='straight'] {
     display: none;
   }
