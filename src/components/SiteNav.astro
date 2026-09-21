@@ -1,7 +1,8 @@
 ---
 // src/components/SiteNav.astro
 // The site navbar. Logo top-left, one link per labelled <Section> on the
-// page. It stays out of the way while the opening crawl runs and drops in
+// page, then any `links` the page adds for somewhere else on the site.
+// It stays out of the way while the opening crawl runs and drops in
 // from the top the moment TECH TEAM starts turning blue (the hero reports
 // that beat on <html data-intro>). The current section's link lights a
 // saber-blade underline. When the links no longer fit, they fold into a
@@ -14,14 +15,32 @@ interface NavSection {
   label: string;
 }
 
+/** A destination off this page, e.g. { label: 'Legacy', href: '/legacy' } */
+interface NavLink {
+  label: string;
+  href: string;
+}
+
 interface Props {
   sections?: NavSection[];
+  links?: NavLink[];
+  /** Where the logo goes. On a page that isn't the home page, give it '/'. */
+  brandHref?: string;
   /** Logo under public/. Until that file exists, the Star Jedi wordmark stands in. */
   logoSrc?: string;
   name?: string;
 }
 
-const { sections = [], logoSrc = '/logo.svg', name = 'Tech Team' } = Astro.props;
+const {
+  sections = [],
+  links = [],
+  brandHref = '#top',
+  logoSrc = '/logo.svg',
+  name = 'Tech Team',
+} = Astro.props;
+
+// The bar shows if there is anything at all to put in it
+const hasNav = sections.length + links.length > 0;
 
 const hasLogo = fs.existsSync(path.join(process.cwd(), 'public', logoSrc));
 const [wordTop, ...wordRest] = name.toUpperCase().split(' ');
@@ -30,7 +49,7 @@ const wordBottom = wordRest.join(' ');
 
 <header class="nav" data-site-nav>
   <div class="nav__bar">
-    <a class="nav__brand" href="#top" aria-label={`${name}, back to top`}>
+    <a class="nav__brand" href={brandHref} aria-label={`${name}, back to top`}>
       {hasLogo ? (
         <img class="nav__logo" src={logoSrc} alt="" />
       ) : (
@@ -41,7 +60,7 @@ const wordBottom = wordRest.join(' ');
       )}
     </a>
 
-    {sections.length > 0 && (
+    {hasNav && (
       <nav class="nav__links" aria-label="Sections">
         <ul>
           {sections.map((s) => (
@@ -51,21 +70,28 @@ const wordBottom = wordRest.join(' ');
               </a>
             </li>
           ))}
+          {links.map((l) => (
+            <li>
+              <a class="nav__link" href={l.href}>
+                <span class="nav__label">{l.label}</span>
+              </a>
+            </li>
+          ))}
         </ul>
       </nav>
     )}
 
-    {sections.length > 0 && (
+    {hasNav && (
       <button class="nav__pill nav__toggle" type="button" popovertarget="site-nav-panel">
         Menu
       </button>
     )}
   </div>
 
-  {sections.length > 0 && (
+  {hasNav && (
     <div class="nav__panel" id="site-nav-panel" popover="auto">
       <div class="nav__bar">
-        <a class="nav__brand" href="#top" aria-label={`${name}, back to top`}>
+        <a class="nav__brand" href={brandHref} aria-label={`${name}, back to top`}>
           {hasLogo ? (
             <img class="nav__logo" src={logoSrc} alt="" />
           ) : (
@@ -91,6 +117,13 @@ const wordBottom = wordRest.join(' ');
             <li style={`--i: ${i}`}>
               <a class="nav__panel-link" href={`#${s.id}`} data-nav-link={s.id}>
                 <span class="nav__label">{s.label}</span>
+              </a>
+            </li>
+          ))}
+          {links.map((l, i) => (
+            <li style={`--i: ${sections.length + i}`}>
+              <a class="nav__panel-link" href={l.href}>
+                <span class="nav__label">{l.label}</span>
               </a>
             </li>
           ))}

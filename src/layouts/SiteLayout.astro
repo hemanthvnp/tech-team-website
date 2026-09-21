@@ -7,9 +7,13 @@ import '../styles/global.css';
 
 interface Props {
   title?: string;
+  /** Destinations elsewhere on the site, appended to the derived section links */
+  links?: { label: string; href: string }[];
+  /** Where the navbar logo goes. Any page but the home page wants '/'. */
+  brandHref?: string;
 }
 
-const { title = 'Tech Team' } = Astro.props;
+const { title = 'Tech Team', links = [], brandHref } = Astro.props;
 
 const body = await Astro.slots.render('default');
 
@@ -51,7 +55,7 @@ const hasIntro = /\sdata-intro-root[\s=>]/.test(body);
     <title>{title}</title>
   </head>
   <body>
-    <SiteNav sections={sections} />
+    <SiteNav sections={sections} links={links} brandHref={brandHref} />
     <main id="main">
       <Fragment set:html={body} />
     </main>
