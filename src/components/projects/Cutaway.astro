@@ -1,0 +1,980 @@
+---
+// src/components/projects/Cutaway.astro
+// Projects skin: each project is a blueprint sheet. The screenshot is taped
+// to the sheet with its measurements drawn round it, every labelled part is
+// led out to a note that says who built it, and the title block in the
+// corner carries the credits.
+//
+// On a wide sheet the notes sit either side of the screenshot with leader
+// lines to their parts, placed by script from where the pins actually are.
+// On a narrow sheet, and without JS, the pins are numbered and the notes
+// follow as a key.
+import { projects, host } from '../../data/projects';
+import { crewHref } from '../../data/crew';
+
+const zones = Array.from({ length: 8 }, (_, i) => i + 1);
+---
+
+<div class="cx" data-cx>
+  <div class="cx__sheet">
+    <div class="cx__zones" aria-hidden="true">{zones.map((z) => <span>{z}</span>)}</div>
+
+    <div class="cx__tabs" role="tablist" aria-label="Sheets">
+      {projects.map((p, i) => (
+        <button
+          class="cx__tab"
+          type="button"
+          role="tab"
+          id={`cx-tab-${p.slug}`}
+          aria-controls={`cx-panel-${p.slug}`}
+          aria-selected={i === 0 ? 'true' : 'false'}
+          tabindex={i === 0 ? 0 : -1}
+        >
+          <span class="cx__tab-no">Sheet {i + 1}</span>
+          <span class="cx__tab-name">{p.name}</span>
+        </button>
+      ))}
+    </div>
+
+    {projects.map((p, i) => (
+      <div
+        class="cx__panel"
+        role="tabpanel"
+        id={`cx-panel-${p.slug}`}
+        aria-labelledby={`cx-tab-${p.slug}`}
+        data-current={i === 0 ? '' : undefined}
+      >
+        <div class="cx__heading">
+          <h3 class="cx__name">{p.name}</h3>
+          <p class="cx__summary">{p.summary}</p>
+        </div>
+
+        <div class="cx__drawing" data-drawing>
+          <figure class="cx__plate">
+            <span class="cx__dim cx__dim--w" aria-hidden="true"><span data-dim-w>16</span></span>
+            <span class="cx__dim cx__dim--h" aria-hidden="true"><span data-dim-h>10</span></span>
+            <span class="cx__tape cx__tape--l" aria-hidden="true"></span>
+            <span class="cx__tape cx__tape--r" aria-hidden="true"></span>
+            <div class="cx__shot">
+              <img src={p.screen} alt={p.screenAlt} loading="lazy" decoding="async" />
+              {p.callouts.map((c, k) => (
+                <button
+                  class="cx__pin"
+                  type="button"
+                  style={`--x: ${c.x}%; --y: ${c.y}%`}
+                  data-part={k}
+                  aria-label={`Part ${k + 1}: ${c.label}`}
+                  aria-controls={`cx-${p.slug}-part-${k}`}
+                >
+                  {k + 1}
+                </button>
+              ))}
+            </div>
+          </figure>
+
+          <svg class="cx__leaders" aria-hidden="true" focusable="false"></svg>
+
+          <ol class="cx__parts">
+            {p.callouts.map((c, k) => {
+              const href = c.by ? crewHref(c.by) : undefined;
+              return (
+                <li class="cx__part" id={`cx-${p.slug}-part-${k}`} data-part={k}>
+                  <span class="cx__part-no" aria-hidden="true">{k + 1}</span>
+                  <p class="cx__part-label">{c.label}</p>
+                  <p class="cx__part-note">{c.note}</p>
+                  {c.by && (
+                    <p class="cx__part-by">
+                      Built by{' '}
+                      {href ? <a href={href} data-crew-link>{c.by}</a> : <span>{c.by}</span>}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+
+        <div class="cx__foot">
+          <div class="cx__notes">
+            <p class="cx__story">{p.story}</p>
+            <a class="cx__go" href={p.url} target="_blank" rel="noopener">
+              <span class="cx__go-main">Open {p.name}</span>
+              <span class="cx__go-sub">{host(p.url)}</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 17 17 7M9 7h8v8" /></svg>
+            </a>
+          </div>
+
+          <dl class="cx__block">
+            <div class="cx__cell cx__cell--wide">
+              <dt>Title</dt>
+              <dd class="cx__block-title">{p.name}</dd>
+            </div>
+            <div class="cx__cell">
+              <dt>Sheet</dt>
+              <dd>{i + 1} of {projects.length}</dd>
+            </div>
+            <div class="cx__cell">
+              <dt>Year</dt>
+              <dd>{p.year}</dd>
+            </div>
+            {p.credits.map((c) => {
+              const href = crewHref(c.name);
+              return (
+                <div class="cx__cell cx__cell--wide">
+                  <dt>{c.part}</dt>
+                  <dd>{href ? <a href={href} data-crew-link>{c.name}</a> : c.name}</dd>
+                </div>
+              );
+            })}
+          </dl>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+
+<style>
+  .cx {
+    --paper: #124a8a; /* cyanotype */
+    --paper-deep: #0b3363;
+    --ink: #eef4ff;
+    --ink-dim: rgba(238, 244, 255, 0.76);
+    --ink-faint: rgba(238, 244, 255, 0.42);
+    --mark: #feda4a; /* the redline, in the site's yellow */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+    position: relative;
+    padding: clamp(1rem, 3vw, 2.25rem) clamp(0.75rem, 2.5vw, 2rem);
+    background:
+      linear-gradient(rgba(238, 244, 255, 0.11) 1px, transparent 1px) -1px -1px / 120px 120px,
+      linear-gradient(90deg, rgba(238, 244, 255, 0.11) 1px, transparent 1px) -1px -1px / 120px 120px,
+      linear-gradient(rgba(238, 244, 255, 0.05) 1px, transparent 1px) -1px -1px / 24px 24px,
+      linear-gradient(90deg, rgba(238, 244, 255, 0.05) 1px, transparent 1px) -1px -1px / 24px 24px,
+      radial-gradient(90% 70% at 30% 20%, #1a5aa0, transparent 70%),
+      radial-gradient(80% 80% at 90% 100%, var(--paper-deep), transparent 70%),
+      var(--paper);
+    color: var(--ink);
+    container: cx / inline-size;
+  }
+
+  /* The paper itself: its grain, and where it was folded to fit a drawer */
+  .cx::before,
+  .cx::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .cx::before {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 .5'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode: soft-light;
+    opacity: 0.7;
+  }
+
+  .cx::after {
+    background:
+      linear-gradient(90deg, transparent calc(50% - 1px), rgba(255, 255, 255, 0.07) calc(50% - 1px), rgba(0, 0, 0, 0.12) calc(50% + 1px), transparent calc(50% + 3px)),
+      linear-gradient(transparent calc(50% - 1px), rgba(255, 255, 255, 0.06) calc(50% - 1px), rgba(0, 0, 0, 0.1) calc(50% + 1px), transparent calc(50% + 3px));
+  }
+
+  .cx__sheet {
+    position: relative;
+    z-index: 1;
+    box-sizing: border-box;
+    max-width: 82rem;
+    margin: 0 auto;
+    padding: clamp(1.75rem, 4vw, 3rem) clamp(1rem, 3.5vw, 2.75rem) clamp(1.5rem, 3.5vw, 2.5rem);
+    border: 1.5px solid rgba(238, 244, 255, 0.6);
+    box-shadow:
+      inset 0 0 0 5px transparent,
+      inset 0 0 0 6px rgba(238, 244, 255, 0.28);
+  }
+
+  /* Zone numbers along the top of the border */
+  .cx__zones {
+    position: absolute;
+    top: -0.55rem;
+    left: 1.5rem;
+    right: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    color: var(--ink-faint);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+  }
+
+  .cx__zones span {
+    padding: 0 0.4rem;
+    background: var(--paper);
+  }
+
+  @container cx (max-width: 40rem) {
+    .cx__zones span:nth-child(2n) { display: none; }
+  }
+
+  /* ---------- Sheet tabs ---------- */
+
+  /* Narrow: two across, each tab underlined in place. Wide: one row, the
+     underline sitting on the rule beneath */
+  .cx__tabs {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem 1.5rem;
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid rgba(238, 244, 255, 0.35);
+  }
+
+  @container cx (min-width: 40rem) {
+    .cx__tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem 1.5rem;
+    }
+  }
+
+  .cx__tab {
+    position: relative;
+    display: grid;
+    gap: 0.1rem;
+    min-height: 2.75rem;
+    padding: 0.35rem 0;
+    border: 0;
+    background: none;
+    color: var(--ink-dim);
+    font-family: 'News Cycle', system-ui, sans-serif;
+    text-align: left;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+
+  .cx__tab::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -0.15rem;
+    height: 3px;
+    background: var(--mark);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.45s var(--ease-out);
+  }
+
+  @container cx (min-width: 40rem) {
+    .cx__tab::after { bottom: calc(-0.9rem - 1px); }
+  }
+
+  .cx__tab:hover { color: var(--ink); }
+  .cx__tab[aria-selected='true'] { color: var(--ink); cursor: default; }
+  .cx__tab[aria-selected='true']::after { transform: none; }
+
+  .cx__tab-no {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+
+  .cx__tab-name {
+    font-family: 'Anton', sans-serif;
+    font-size: 1.2rem;
+    line-height: 1.1;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .cx__tab:focus-visible { outline-color: var(--mark); }
+
+  /* ---------- A sheet ---------- */
+
+  .cx.is-live .cx__panel:not([data-current]) { display: none; }
+  .cx:not(.is-live) .cx__panel + .cx__panel {
+    margin-top: 3rem;
+    padding-top: 3rem;
+    border-top: 1px solid rgba(238, 244, 255, 0.35);
+  }
+
+  .cx__heading {
+    display: grid;
+    gap: 0.6rem 2.5rem;
+    margin: clamp(1.75rem, 4vh, 2.5rem) 0 0;
+  }
+
+  @container cx (min-width: 50rem) {
+    .cx__heading {
+      grid-template-columns: auto 1fr;
+      align-items: end;
+    }
+  }
+
+  .cx__name {
+    margin: 0;
+    font-family: 'Anton', sans-serif;
+    font-weight: 400;
+    font-size: clamp(2.6rem, 7cqi, 4.4rem);
+    line-height: 0.95;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .cx__summary {
+    max-width: 48ch;
+    margin: 0;
+    color: var(--ink);
+    font-size: clamp(1.02rem, 1.8cqi, 1.2rem);
+    font-weight: 700;
+    line-height: 1.4;
+    text-wrap: pretty;
+  }
+
+  /* ---- The drawing: plate, pins, notes, leaders ---- */
+
+  .cx__drawing {
+    --gutter: clamp(14rem, 24cqi, 18rem); /* each side, when the notes stand beside the plate */
+    position: relative;
+    margin-top: clamp(3rem, 7vh, 4rem);
+  }
+
+  .cx__plate {
+    position: relative;
+    margin: 0 0 0 1.9rem;
+  }
+
+  .cx__drawing.is-plotted .cx__plate {
+    width: calc(100% - 2 * var(--gutter));
+    margin: 0 auto;
+  }
+
+  .cx__shot { position: relative; }
+
+  .cx__shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+    outline: 1px solid rgba(238, 244, 255, 0.9);
+    outline-offset: 4px;
+    box-shadow: 0 1.2rem 2rem -1rem rgba(3, 18, 40, 0.8);
+  }
+
+  /* Measured round the top and down the left */
+  .cx__dim {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-dim);
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .cx__dim--w {
+    left: 0;
+    right: 0;
+    top: -1.7rem;
+    height: 1px;
+    background: var(--ink-faint);
+  }
+
+  .cx__dim--h {
+    top: 0;
+    bottom: 0;
+    left: -1.7rem;
+    width: 1px;
+    background: var(--ink-faint);
+  }
+
+  /* The ticks at each end, drawn the architect's way */
+  .cx__dim::before,
+  .cx__dim::after {
+    content: '';
+    position: absolute;
+    width: 9px;
+    height: 1.5px;
+    background: var(--ink-dim);
+    rotate: -45deg;
+  }
+
+  .cx__dim--w::before { left: -4px; }
+  .cx__dim--w::after { right: -4px; }
+  .cx__dim--h::before { top: -1px; }
+  .cx__dim--h::after { bottom: -1px; }
+
+  .cx__dim > span {
+    padding: 0 0.45rem;
+    background: var(--paper);
+    white-space: nowrap;
+  }
+
+  .cx__dim--h > span {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    padding: 0.45rem 0;
+  }
+
+  .cx__tape {
+    position: absolute;
+    z-index: 2;
+    top: -0.55rem;
+    width: clamp(3rem, 7cqi, 4.5rem);
+    height: 1.2rem;
+    background: rgba(246, 240, 214, 0.42);
+    box-shadow: 0 1px 2px rgba(3, 18, 40, 0.25);
+    pointer-events: none;
+  }
+
+  .cx__tape--l { left: -1.2rem; rotate: -32deg; }
+  .cx__tape--r { right: -1.2rem; rotate: 32deg; }
+
+  .cx__pin {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    padding: 0;
+    border: 2px solid var(--ink);
+    border-radius: 50%;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'News Cycle', system-ui, sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    translate: -50% -50%;
+    box-shadow: 0 0.2rem 0.5rem rgba(3, 18, 40, 0.55);
+    transition:
+      background-color 0.2s,
+      color 0.2s,
+      border-color 0.2s,
+      scale 0.3s var(--ease-out);
+  }
+
+  /* 44px to aim at */
+  .cx__pin::before {
+    content: '';
+    position: absolute;
+    inset: -0.55rem;
+    border-radius: 50%;
+  }
+
+  .cx__pin.is-hot,
+  .cx__pin:hover {
+    border-color: var(--mark);
+    background: var(--mark);
+    color: var(--paper-deep);
+    scale: 1.12;
+  }
+
+  .cx__pin:focus-visible { outline-color: var(--mark); outline-offset: 3px; }
+
+  .cx__leaders {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: none;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .cx__drawing.is-plotted .cx__leaders { display: block; }
+
+  .cx__leaders :global(path) {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.3;
+    stroke-linejoin: round;
+    opacity: 0.85;
+    transition:
+      stroke 0.2s,
+      opacity 0.2s;
+  }
+
+  /* A dark casing under each leader, so it still reads where it crosses a
+     light screenshot */
+  .cx__leaders :global(path.cx__casing) {
+    stroke: var(--paper-deep);
+    stroke-width: 4;
+    opacity: 0.75;
+  }
+
+  .cx__leaders :global(circle) { fill: var(--ink); }
+
+  .cx__leaders :global(path.is-hot) { stroke: var(--mark); opacity: 1; stroke-width: 1.8; }
+  .cx__leaders :global(circle.is-hot) { fill: var(--mark); }
+
+  /* The key, beneath the plate */
+  .cx__parts {
+    display: grid;
+    gap: 1.4rem 2.5rem;
+    margin: 2.25rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  @container cx (min-width: 38rem) {
+    .cx__parts { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .cx__part {
+    position: relative;
+    padding-left: 2.35rem;
+    transition: opacity 0.25s;
+  }
+
+  .cx__part-no {
+    position: absolute;
+    top: -0.1rem;
+    left: 0;
+    display: grid;
+    place-items: center;
+    width: 1.55rem;
+    height: 1.55rem;
+    border: 1.5px solid var(--ink);
+    border-radius: 50%;
+    font-size: 0.72rem;
+    font-weight: 700;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  }
+
+  .cx__part.is-hot .cx__part-no {
+    border-color: var(--mark);
+    background: var(--mark);
+    color: var(--paper-deep);
+  }
+
+  .cx__part-label {
+    margin: 0;
+    font-family: 'Anton', sans-serif;
+    font-size: 1.05rem;
+    line-height: 1.2;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .cx__part-note {
+    margin: 0.35rem 0 0;
+    color: var(--ink-dim);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    text-wrap: pretty;
+  }
+
+  .cx__part-by {
+    margin: 0.45rem 0 0;
+    color: var(--ink-dim);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .cx__part-by a,
+  .cx__part-by span,
+  .cx__block a {
+    color: var(--mark);
+  }
+
+  .cx__part-by a,
+  .cx__block a {
+    text-decoration: underline;
+    text-decoration-color: rgba(254, 218, 74, 0.45);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.25em;
+    transition: text-decoration-color 0.2s;
+  }
+
+  .cx__part-by a:hover,
+  .cx__block a:hover { text-decoration-color: var(--mark); }
+
+  .cx__part-by a:focus-visible,
+  .cx__block a:focus-visible,
+  .cx__go:focus-visible { outline-color: var(--mark); }
+
+  .cx__drawing[data-hot] .cx__part:not(.is-hot) { opacity: 0.5; }
+
+  /* Wide: the notes stand either side, placed by script beside their parts */
+  .cx__drawing.is-plotted .cx__parts {
+    position: absolute;
+    inset: 0;
+    display: block;
+    margin: 0;
+    pointer-events: none;
+  }
+
+  .cx__drawing.is-plotted .cx__part {
+    position: absolute;
+    width: calc(var(--gutter) - 3.25rem);
+    pointer-events: auto;
+  }
+
+  .cx__drawing.is-plotted .cx__part[data-side='left'] {
+    left: 0;
+    padding: 0 2.35rem 0 0;
+    text-align: right;
+  }
+
+  .cx__drawing.is-plotted .cx__part[data-side='left'] .cx__part-no { left: auto; right: 0; }
+  .cx__drawing.is-plotted .cx__part[data-side='right'] { right: 0; }
+
+  /* ---- Foot: the notes and the title block ---- */
+
+  .cx__foot {
+    display: grid;
+    gap: 2rem;
+    margin-top: clamp(2.5rem, 6vh, 3.5rem);
+  }
+
+  @container cx (min-width: 50rem) {
+    .cx__foot {
+      grid-template-columns: 1fr minmax(20rem, 26rem);
+      align-items: start;
+      column-gap: 3rem;
+    }
+  }
+
+  .cx__story {
+    max-width: 60ch;
+    margin: 0;
+    color: var(--ink-dim);
+    font-size: 1rem;
+    line-height: 1.6;
+    text-wrap: pretty;
+  }
+
+  .cx__go {
+    display: inline-grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    column-gap: 1.1rem;
+    row-gap: 0.1rem;
+    min-width: 15rem;
+    margin-top: 1.4rem;
+    padding: 0.9rem 1.05rem 0.9rem 1.25rem;
+    border-radius: 3px;
+    background: var(--mark);
+    color: #0b2a52;
+    text-decoration: none;
+    transition:
+      transform 0.35s var(--ease-out),
+      box-shadow 0.35s var(--ease-out),
+      background-color 0.2s;
+  }
+
+  .cx__go:hover {
+    background: #ffe46e;
+    transform: translateY(-2px);
+    box-shadow: 0 0.8rem 1.4rem -0.6rem rgba(3, 18, 40, 0.8);
+  }
+
+  .cx__go-main {
+    font-family: 'Anton', sans-serif;
+    font-size: 1.15rem;
+    line-height: 1.1;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .cx__go-sub {
+    grid-row: 2;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
+  .cx__go svg {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    width: 1.5rem;
+    height: 1.5rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.35s var(--ease-out);
+  }
+
+  .cx__go:hover svg { transform: translate(2px, -2px); }
+
+  /* The title block, ruled in cells the way a drawing office would */
+  .cx__block {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin: 0;
+    border: 1.5px solid var(--ink);
+  }
+
+  .cx__cell {
+    display: grid;
+    grid-template-columns: 6.5rem 1fr;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid rgba(238, 244, 255, 0.45);
+  }
+
+  .cx__cell:nth-child(2) { border-right: 1px solid rgba(238, 244, 255, 0.45); }
+  .cx__cell:nth-child(2),
+  .cx__cell:nth-child(3) { grid-template-columns: auto 1fr; }
+  .cx__cell:last-child { border-bottom: 0; }
+  .cx__cell--wide { grid-column: 1 / -1; }
+
+  .cx__cell dt {
+    color: var(--ink-dim);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .cx__cell dd {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .cx__block-title {
+    font-family: 'Anton', sans-serif;
+    font-size: 1.35rem !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .cx.is-live .cx__panel.is-entering { animation: cx-in 0.55s var(--ease-out); }
+
+    .cx__drawing.is-drawing .cx__leaders :global(path) {
+      stroke-dasharray: 1;
+      stroke-dashoffset: 1;
+      animation: cx-draw 0.9s var(--ease-out) forwards;
+      animation-delay: calc(0.25s + var(--k) * 0.12s);
+    }
+
+    .cx__drawing.is-drawing .cx__leaders :global(circle) {
+      opacity: 0;
+      animation: cx-dot 0.3s ease-out forwards;
+      animation-delay: calc(0.2s + var(--k) * 0.12s);
+    }
+  }
+
+  @keyframes cx-in {
+    from { opacity: 0; transform: translateX(1.5rem); }
+  }
+
+  @keyframes cx-draw {
+    to { stroke-dashoffset: 0; }
+  }
+
+  @keyframes cx-dot {
+    to { opacity: 1; }
+  }
+</style>
+
+<script>
+  function initCutaway() {
+    const cx = document.querySelector<HTMLElement>('[data-cx]');
+    if (!cx || cx.dataset.ready === 'true') return;
+    cx.dataset.ready = 'true';
+    cx.classList.add('is-live');
+
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const tabs = Array.from(cx.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    const panels = tabs.map((t) => document.getElementById(t.getAttribute('aria-controls') as string) as HTMLElement);
+    const NS = 'http://www.w3.org/2000/svg';
+    const drawers = new Map<HTMLElement, (animate: boolean) => void>();
+
+    for (const panel of panels) {
+      const drawing = panel.querySelector<HTMLElement>('[data-drawing]') as HTMLElement;
+      const shot = drawing.querySelector<HTMLElement>('.cx__shot') as HTMLElement;
+      const img = shot.querySelector('img') as HTMLImageElement;
+      const pins = Array.from(drawing.querySelectorAll<HTMLButtonElement>('.cx__pin'));
+      const parts = Array.from(drawing.querySelectorAll<HTMLElement>('.cx__part'));
+      const svg = drawing.querySelector<SVGSVGElement>('.cx__leaders') as SVGSVGElement;
+
+      /* The measurements are the screenshot's own */
+      const measure = () => {
+        if (!img.naturalWidth) return;
+        (panel.querySelector('[data-dim-w]') as HTMLElement).textContent = `${img.naturalWidth} px`;
+        (panel.querySelector('[data-dim-h]') as HTMLElement).textContent = `${img.naturalHeight} px`;
+      };
+      if (img.complete) measure();
+      else img.addEventListener('load', measure, { once: true });
+
+      /* Hovering or focusing a part lights its pin, note and leader */
+      const hot = (k: number | null) => {
+        drawing.toggleAttribute('data-hot', k !== null);
+        parts.forEach((p, j) => p.classList.toggle('is-hot', j === k));
+        pins.forEach((p, j) => p.classList.toggle('is-hot', j === k));
+        svg.querySelectorAll<SVGElement>('[data-part]').forEach((el) => {
+          el.classList.toggle('is-hot', Number(el.dataset.part) === k);
+        });
+      };
+
+      [...parts, ...pins].forEach((el) => {
+        const k = Number(el.dataset.part);
+        el.addEventListener('pointerenter', () => hot(k));
+        el.addEventListener('pointerleave', () => hot(null));
+        el.addEventListener('focusin', () => hot(k));
+        el.addEventListener('focusout', () => hot(null));
+      });
+
+      pins.forEach((pin, k) => {
+        pin.addEventListener('click', () => {
+          hot(k);
+          if (!drawing.classList.contains('is-plotted')) {
+            parts[k].scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+          }
+        });
+      });
+
+      /* Wide: place each note beside its part and run a leader to it */
+      const layout = (animate: boolean) => {
+        const wide = drawing.clientWidth >= 880;
+        drawing.classList.toggle('is-plotted', wide);
+        drawing.classList.remove('is-drawing');
+        drawing.style.paddingBottom = '';
+        svg.replaceChildren();
+        for (const p of parts) {
+          p.style.top = '';
+          delete p.dataset.side;
+        }
+        if (!wide || !img.naturalWidth) return;
+
+        const d = drawing.getBoundingClientRect();
+        const s = shot.getBoundingClientRect();
+        const mid = s.left - d.left + s.width / 2;
+        const shotBottom = s.bottom - d.top;
+        const GAP = 18;
+        const LIFT = 11; // from a note's top to the middle of its first line
+
+        type Row = { k: number; px: number; py: number; top: number; h: number };
+        const sides: Record<'left' | 'right', Row[]> = { left: [], right: [] };
+        pins.forEach((pin, k) => {
+          const r = pin.getBoundingClientRect();
+          const px = r.left + r.width / 2 - d.left;
+          const py = r.top + r.height / 2 - d.top;
+          const side = px < mid ? 'left' : 'right';
+          parts[k].dataset.side = side;
+          sides[side].push({ k, px, py, top: 0, h: 0 });
+        });
+
+        let bottom = shotBottom;
+        for (const side of ['left', 'right'] as const) {
+          const rows = sides[side].sort((a, b) => a.py - b.py);
+          for (const r of rows) r.h = parts[r.k].offsetHeight;
+          // Down from the top, each note as near its pin as the one above allows
+          let y = 0;
+          for (const r of rows) {
+            r.top = Math.max(r.py - LIFT, y);
+            y = r.top + r.h + GAP;
+          }
+          // Then back up, so the last note doesn't hang below the plate
+          let limit = shotBottom;
+          for (let j = rows.length - 1; j >= 0; j--) {
+            const r = rows[j];
+            if (r.top + r.h > limit) r.top = Math.max(0, limit - r.h);
+            limit = r.top - GAP;
+          }
+          y = 0;
+          for (const r of rows) {
+            r.top = Math.max(r.top, y);
+            y = r.top + r.h + GAP;
+            parts[r.k].style.top = `${r.top}px`;
+          }
+          bottom = Math.max(bottom, y - GAP);
+        }
+        if (bottom > shotBottom) drawing.style.paddingBottom = `${Math.ceil(bottom - shotBottom)}px`;
+
+        const W = drawing.clientWidth;
+        const H = drawing.clientHeight;
+        svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+        for (const side of ['left', 'right'] as const) {
+          for (const r of sides[side]) {
+            const li = parts[r.k];
+            const ay = r.top + LIFT;
+            const edge = side === 'left' ? s.left - d.left - 22 : s.right - d.left + 22;
+            const ax = side === 'left' ? li.offsetLeft + li.offsetWidth + 10 : li.offsetLeft - 10;
+            const route = `M${r.px.toFixed(1)} ${r.py.toFixed(1)}L${edge.toFixed(1)} ${ay.toFixed(1)}H${ax.toFixed(1)}`;
+            const casing = document.createElementNS(NS, 'path');
+            casing.setAttribute('d', route);
+            casing.setAttribute('pathLength', '1');
+            casing.setAttribute('class', 'cx__casing');
+            casing.style.setProperty('--k', String(r.k));
+            const path = document.createElementNS(NS, 'path');
+            path.setAttribute('d', route);
+            path.setAttribute('pathLength', '1');
+            path.dataset.part = String(r.k);
+            path.style.setProperty('--k', String(r.k));
+            const dot = document.createElementNS(NS, 'circle');
+            dot.setAttribute('cx', ax.toFixed(1));
+            dot.setAttribute('cy', ay.toFixed(1));
+            dot.setAttribute('r', '2.6');
+            dot.dataset.part = String(r.k);
+            dot.style.setProperty('--k', String(r.k));
+            svg.append(casing, path, dot);
+          }
+        }
+        if (animate && !still) drawing.classList.add('is-drawing');
+      };
+
+      drawers.set(panel, layout);
+      let lastW = 0;
+      new ResizeObserver(() => {
+        const w = drawing.clientWidth;
+        if (!w || w === lastW) return;
+        const first = lastW === 0;
+        lastW = w;
+        layout(first);
+      }).observe(drawing);
+      img.addEventListener('load', () => layout(false));
+    }
+
+    const select = (i: number) => {
+      tabs.forEach((t, k) => {
+        t.setAttribute('aria-selected', String(k === i));
+        t.tabIndex = k === i ? 0 : -1;
+      });
+      panels.forEach((p, k) => {
+        const on = k === i;
+        p.toggleAttribute('data-current', on);
+        p.classList.toggle('is-entering', on && !still);
+      });
+      panels[i].addEventListener('animationend', () => panels[i].classList.remove('is-entering'), { once: true });
+      requestAnimationFrame(() => drawers.get(panels[i])?.(true));
+    };
+
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => {
+        if (t.getAttribute('aria-selected') !== 'true') select(i);
+      });
+      t.addEventListener('keydown', (e) => {
+        const last = tabs.length - 1;
+        const to =
+          e.key === 'ArrowRight' ? (i === last ? 0 : i + 1)
+          : e.key === 'ArrowLeft' ? (i === 0 ? last : i - 1)
+          : e.key === 'Home' ? 0
+          : e.key === 'End' ? last
+          : -1;
+        if (to < 0) return;
+        e.preventDefault();
+        tabs[to].focus();
+        select(to);
+      });
+    });
+  }
+
+  initCutaway();
+  document.addEventListener('astro:page-load', initCutaway);
+</script>

@@ -27,7 +27,7 @@ export interface PastCrew {
   members: CrewMember[];
 }
 
-export const isSample = true;
+export const isSample = false;
 
 /** The current crew's year, printed on every card */
 export const series = "2026";
@@ -64,12 +64,13 @@ export const deputies: CrewMember[] = [
     name: "Hemanth",
     role: "Deputy",
     focus: "Front ends and the club site.",
+    photo: "/crew/deputies/hemanth.jpeg",
   },
   {
     name: "Jithendra",
     role: "Deputy",
     focus: "Deploys, servers and the bill.",
-    photo: "/crew/deputies/jithu.jpg",
+    photo: "/crew/deputies/jithu.jpeg",
   },
   {
     name: "Nithiish SD",
@@ -77,6 +78,20 @@ export const deputies: CrewMember[] = [
     focus: "Models, datasets and demos.",
   },
 ];
+
+/** The page anchor on a current crew member's card, e.g. "crew-ajay-h" */
+export const crewId = (name: string) =>
+  "crew-" +
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+/** The card to link a credit to, when the name is on this year's crew */
+export const crewHref = (name: string) =>
+  [...heads, ...deputies].some((m) => m.name === name)
+    ? `#${crewId(name)}`
+    : undefined;
 
 export const legacy: PastCrew[] = [
   {

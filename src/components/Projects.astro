@@ -1,0 +1,416 @@
+---
+// src/components/Projects.astro
+// The team's flagship projects, in four skins while the design is being
+// decided, picked from the menu in the header:
+//
+//   Now Showing  each project a feature at a 1977 picture house
+//   Briefing     the war room: each project traced as vector plans
+//   Cutaway      each project a blueprint sheet with its parts labelled
+//   Straight     the same content, no homage
+//
+// ?projects=briefing (or cutaway, straight) opens on that skin; otherwise
+// this browser's last pick. The menu is for the showcase: once a skin is
+// chosen, keep its component, delete the other three and the menu.
+//
+// Every skin credits the crew by name. A name on this year's crew links to
+// their card in the Crew section, which turns over when you land on it.
+import Section from './Section.astro';
+import NowShowing from './projects/NowShowing.astro';
+import Briefing from './projects/Briefing.astro';
+import Cutaway from './projects/Cutaway.astro';
+import Straight from './projects/Straight.astro';
+import { isSample } from '../data/projects';
+
+const looks = [
+  { id: 'showing', name: 'Now Showing', line: 'A 1977 picture house: the marquee, the screen, the billing block' },
+  { id: 'briefing', name: 'Briefing', line: 'The war room: each project traced as vector plans, then launched' },
+  { id: 'cutaway', name: 'Cutaway', line: 'A blueprint sheet per project, every part labelled with who built it' },
+  { id: 'straight', name: 'Straight', line: 'The same projects, set plainly, no homage' },
+];
+---
+
+<Section id="projects" label="Projects">
+  <div class="projects" data-projects data-look="showing">
+    <script is:inline>
+      // Before paint: open on the skin in the URL, or this browser's last pick
+      (function (el) {
+        var look = new URLSearchParams(location.search).get('projects');
+        try { look = look || localStorage.getItem('projects-look'); } catch (e) {}
+        if (/^(showing|briefing|cutaway|straight)$/.test(look || '')) el.dataset.look = look;
+        el.classList.add('is-live');
+      })(document.currentScript.parentElement);
+    </script>
+
+    <header class="projects__head">
+      <h2 class="projects__heading">Projects</h2>
+      {isSample && <p class="projects__note">Sample projects. Replace them in src/data/projects.ts</p>}
+
+      <div class="looks" data-looks>
+        <span class="looks__label" id="projects-look-label">Skin</span>
+        <div class="looks__anchor">
+          <button
+            class="looks__button"
+            type="button"
+            id="projects-look-button"
+            aria-haspopup="menu"
+            aria-expanded="false"
+            aria-controls="projects-look-menu"
+            aria-labelledby="projects-look-label projects-look-button"
+          >
+            <span data-look-current>{looks[0].name}</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+          <ul class="looks__menu" id="projects-look-menu" role="menu" aria-labelledby="projects-look-button" hidden>
+            {looks.map((l, i) => (
+              <li role="none">
+                <button
+                  class="looks__item"
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={i === 0 ? 'true' : 'false'}
+                  tabindex="-1"
+                  data-look-pick={l.id}
+                >
+                  <span class="looks__mark" aria-hidden="true"></span>
+                  <span class="looks__name">{l.name}</span>
+                  <span class="looks__line">{l.line}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </header>
+
+    <div class="projects__look" data-look-panel="showing"><NowShowing /></div>
+    <div class="projects__look" data-look-panel="briefing"><Briefing /></div>
+    <div class="projects__look" data-look-panel="cutaway"><Cutaway /></div>
+    <div class="projects__look" data-look-panel="straight"><Straight /></div>
+  </div>
+</Section>
+
+<style>
+  .projects {
+    --yellow: #feda4a;
+    --yellow-dim: rgba(254, 218, 74, 0.72);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    padding: clamp(4.5rem, 12vh, 7.5rem) 0 clamp(4rem, 10vh, 6.5rem);
+  }
+
+  /* One skin at a time; without JS, the first */
+  .projects:not([data-look='showing']) > [data-look-panel='showing'],
+  .projects:not([data-look='briefing']) > [data-look-panel='briefing'],
+  .projects:not([data-look='cutaway']) > [data-look-panel='cutaway'],
+  .projects:not([data-look='straight']) > [data-look-panel='straight'] {
+    display: none;
+  }
+
+  /* ---------- Heading and the skin menu, set like the Crew's ---------- */
+
+  .projects__head {
+    position: relative;
+    z-index: 5;
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 1.5rem;
+    row-gap: 0.75rem;
+    max-width: 72rem;
+    margin: 0 auto clamp(2.5rem, 6vh, 4rem);
+    padding: 0 clamp(1rem, 4vw, 2.5rem);
+  }
+
+  .projects__heading {
+    margin: 0;
+    color: var(--yellow);
+    font-family: 'Star Jedi', 'Anton', sans-serif;
+    font-weight: 400;
+    font-size: clamp(2.25rem, 7vw, 4.5rem);
+    line-height: 1;
+    letter-spacing: 0.04em;
+    text-transform: lowercase; /* Star Jedi's clean letters; see global.css */
+  }
+
+  .projects__note {
+    margin: 0;
+    color: rgba(254, 218, 74, 0.6);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .looks {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin-left: auto;
+    align-self: center;
+  }
+
+  .looks__label {
+    color: rgba(254, 218, 74, 0.6);
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .looks__anchor { position: relative; }
+
+  .looks__button {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 2.75rem;
+    padding: 0 0.85rem 0 1.1rem;
+    border: 1px solid rgba(254, 218, 74, 0.35);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--yellow);
+    font-family: 'News Cycle', system-ui, sans-serif;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: border-color 0.2s, background-color 0.2s;
+  }
+
+  .looks__button:hover,
+  .looks__button[aria-expanded='true'] {
+    border-color: rgba(254, 218, 74, 0.7);
+    background: rgba(254, 218, 74, 0.06);
+  }
+
+  .looks__button svg {
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.3s var(--ease-out);
+  }
+
+  .looks__button[aria-expanded='true'] svg { transform: rotate(180deg); }
+
+  .looks__menu {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    box-sizing: border-box;
+    width: min(21rem, calc(100vw - 2rem));
+    margin: 0;
+    padding: 0.4rem;
+    border: 1px solid rgba(254, 218, 74, 0.28);
+    border-radius: 0.85rem;
+    background: #0b0a06;
+    list-style: none;
+    box-shadow:
+      0 1.2rem 2.5rem -0.6rem rgba(0, 0, 0, 0.9),
+      0 0.3rem 0.8rem rgba(0, 0, 0, 0.6);
+    transform-origin: 90% 0;
+  }
+
+  .looks__menu:not([hidden]) { animation: looks-open 0.28s var(--ease-out); }
+
+  @keyframes looks-open {
+    from { opacity: 0; transform: translateY(-0.4rem) scale(0.97); }
+  }
+
+  .looks__item {
+    display: grid;
+    grid-template-columns: 1.1rem 1fr;
+    column-gap: 0.75rem;
+    row-gap: 0.2rem;
+    width: 100%;
+    padding: 0.8rem 0.9rem 0.85rem 0.8rem;
+    border: 0;
+    border-radius: 0.55rem;
+    background: transparent;
+    color: var(--yellow);
+    font-family: 'News Cycle', system-ui, sans-serif;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .looks__item:hover,
+  .looks__item:focus-visible {
+    background: rgba(254, 218, 74, 0.09);
+    outline: none;
+  }
+
+  /* A radio's dot: filled for the skin showing */
+  .looks__mark {
+    grid-row: 1 / span 2;
+    align-self: start;
+    width: 0.7rem;
+    height: 0.7rem;
+    margin-top: 0.2rem;
+    border: 1.5px solid rgba(254, 218, 74, 0.55);
+    border-radius: 50%;
+  }
+
+  .looks__item[aria-checked='true'] .looks__mark {
+    border-color: var(--yellow);
+    background: radial-gradient(circle, var(--yellow) 0 42%, transparent 46%);
+  }
+
+  .looks__name {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .looks__line {
+    color: rgba(254, 218, 74, 0.68);
+    font-size: 0.86rem;
+    line-height: 1.35;
+    text-wrap: pretty;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .looks__menu:not([hidden]) { animation: none; }
+  }
+</style>
+
+<script>
+  function initProjects() {
+    const root = document.querySelector<HTMLElement>('[data-projects]');
+    if (!root || root.dataset.ready === 'true') return;
+    root.dataset.ready = 'true';
+
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    /* ---- The skin menu (showcase only) ---- */
+    const button = root.querySelector<HTMLButtonElement>('#projects-look-button') as HTMLButtonElement;
+    const menu = root.querySelector<HTMLElement>('#projects-look-menu') as HTMLElement;
+    const current = root.querySelector<HTMLElement>('[data-look-current]') as HTMLElement;
+    const items = Array.from(menu.querySelectorAll<HTMLButtonElement>('[data-look-pick]'));
+
+    const setLook = (look: string, remember: boolean) => {
+      root.dataset.look = look;
+      for (const it of items) {
+        const on = it.dataset.lookPick === look;
+        it.setAttribute('aria-checked', String(on));
+        if (on) current.textContent = it.querySelector('.looks__name')?.textContent ?? look;
+      }
+      root.dispatchEvent(new CustomEvent('projects:look', { detail: look }));
+      if (!remember) return;
+      try {
+        localStorage.setItem('projects-look', look);
+      } catch {}
+      const url = new URL(window.location.href);
+      if (look === 'showing') url.searchParams.delete('projects');
+      else url.searchParams.set('projects', look);
+      history.replaceState(history.state, '', url);
+    };
+
+    const open = (focus: 'checked' | 'first' | 'last' = 'checked') => {
+      menu.hidden = false;
+      button.setAttribute('aria-expanded', 'true');
+      const target =
+        focus === 'first' ? items[0]
+        : focus === 'last' ? items[items.length - 1]
+        : items.find((it) => it.getAttribute('aria-checked') === 'true') ?? items[0];
+      target.focus();
+    };
+
+    const close = (refocus: boolean) => {
+      if (menu.hidden) return;
+      menu.hidden = true;
+      button.setAttribute('aria-expanded', 'false');
+      if (refocus) button.focus();
+    };
+
+    setLook(root.dataset.look ?? 'showing', false);
+
+    button.addEventListener('click', () => (menu.hidden ? open() : close(false)));
+    button.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        open(e.key === 'ArrowDown' ? 'checked' : 'last');
+      }
+    });
+
+    items.forEach((it, i) => {
+      it.addEventListener('click', () => {
+        setLook(it.dataset.lookPick as string, true);
+        close(true);
+      });
+      it.addEventListener('keydown', (e) => {
+        const last = items.length - 1;
+        const to =
+          e.key === 'ArrowDown' ? (i === last ? 0 : i + 1)
+          : e.key === 'ArrowUp' ? (i === 0 ? last : i - 1)
+          : e.key === 'Home' ? 0
+          : e.key === 'End' ? last
+          : -1;
+        if (to >= 0) {
+          e.preventDefault();
+          items[to].focus();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          close(true);
+        } else if (e.key === 'Tab') {
+          close(false);
+        }
+      });
+    });
+
+    document.addEventListener('pointerdown', (e) => {
+      if (!(e.target as Element).closest('.looks__anchor')) close(false);
+    });
+
+    /* ---- A credit takes you to that person's card and turns it over ---- */
+    root.addEventListener('click', (e) => {
+      const link = (e.target as Element).closest<HTMLAnchorElement>('a[data-crew-link]');
+      if (!link) return;
+      const card = document.getElementById(decodeURIComponent(link.hash.slice(1)));
+      if (!card) return;
+
+      let called = false;
+      const call = () => {
+        if (called) return;
+        called = true;
+        const crew = card.closest<HTMLElement>('[data-crew]');
+        if (crew?.dataset.skin === 'homage' && !card.classList.contains('is-flipped')) {
+          card.querySelector<HTMLButtonElement>('[data-card-flip]')?.click();
+        }
+        card.classList.remove('is-called');
+        void card.offsetWidth; // restart the ring if it's already ringing
+        card.classList.add('is-called');
+        window.setTimeout(() => card.classList.remove('is-called'), 1800);
+      };
+      // Once the scroll there settles, or straight away if there's no scroll
+      window.addEventListener('scrollend', call, { once: true });
+      window.setTimeout(call, still.matches ? 50 : 1400);
+    });
+
+    /* ---- Recordings play while they're on screen, never under reduced
+       motion (they keep their controls instead) ---- */
+    const reels = Array.from(root.querySelectorAll<HTMLVideoElement>('video[data-reel]'));
+    if (reels.length) {
+      if (still.matches) {
+        for (const v of reels) v.controls = true;
+      } else if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver(
+          (entries) => {
+            for (const en of entries) {
+              const v = en.target as HTMLVideoElement;
+              if (en.isIntersecting) v.play().catch(() => {});
+              else v.pause();
+            }
+          },
+          { threshold: 0.4 },
+        );
+        for (const v of reels) io.observe(v);
+      }
+    }
+  }
+
+  initProjects();
+  document.addEventListener('astro:page-load', initProjects);
+</script>

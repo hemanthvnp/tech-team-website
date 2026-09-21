@@ -1,7 +1,7 @@
 ---
 // src/components/Timeline.astro
 // The team's milestones along a hyperspace route. The section pins to the
-// screen and the page's own scroll flies a small freighter down a wavy
+// screen and the page's own scroll flies a small fighter jet down a wavy
 // path that runs diagonally, so the scene slides up and to the left as it
 // advances. Milestones sit on the path's crests and troughs, alternating
 // above and below. Each one surfaces as the ship reaches it. The ship
@@ -67,26 +67,103 @@ import { milestones, isSample } from '../data/timeline';
             </div>
           </div>
 
-          <!-- Top-down freighter, nose to the right; the engine band is at the back -->
+          <!-- Top-down desert-camo fighter, nose to the right; the nozzle
+               is at the back, behind the engine plume -->
           <div class="tl__ship" aria-hidden="true">
-            <svg viewBox="-26 -20 52 40">
+            <svg viewBox="-32 -16.5 64 33">
               <defs>
                 <radialGradient id="tl-exhaust">
                   <stop offset="0" stop-color="#e9fbff" stop-opacity="0.95" />
                   <stop offset="0.45" stop-color="#4bd5ee" stop-opacity="0.55" />
                   <stop offset="1" stop-color="#4bd5ee" stop-opacity="0" />
                 </radialGradient>
+                <!-- Camo blotches are painted over the panels, then trimmed
+                     back to them, so they never spill past an edge -->
+                <clipPath id="tl-jet-wings">
+                  <path d="M-8.4 -13.4 L-0.5 -13.4 L7.9 -3.4 L-9.9 -3.4 Z M-8.4 13.4 L-0.5 13.4 L7.9 3.4 L-9.9 3.4 Z" />
+                </clipPath>
+                <clipPath id="tl-jet-body">
+                  <path d="M25.6 -0.75 C18.5 -2.2 13.5 -3 8.9 -3.35 L-9.9 -3.45 C-17.5 -3.4 -23.5 -2.9 -27.6 -2.25 L-27.6 2.25 C-23.5 2.9 -17.5 3.4 -9.9 3.45 L8.9 3.35 C13.5 3 18.5 2.2 25.6 0.75 Z" />
+                </clipPath>
               </defs>
-              <ellipse class="tl__exhaust" cx="-19" cy="0" rx="8" ry="11" fill="url(#tl-exhaust)" />
-              <path d="M7 -10.4 L21.6 -8.3 Q23 -8.1 23 -6.8 L23 -2.7 L9 -2.3 Z" fill="#c3c9d1" />
-              <path d="M7 10.4 L21.6 8.3 Q23 8.1 23 6.8 L23 2.7 L9 2.3 Z" fill="#c3c9d1" />
-              <path d="M4.5 8.8 L11 14.2" stroke="#c3c9d1" stroke-width="3.2" stroke-linecap="round" />
-              <circle cx="-1" cy="0" r="13.5" fill="#dfe3e8" />
-              <circle cx="12.4" cy="15" r="2.7" fill="#dfe3e8" />
-              <path d="M-11.3 -8.7 A13.5 13.5 0 0 0 -11.3 8.7" fill="none" stroke="#e9fbff" stroke-width="2.6" stroke-linecap="round" />
-              <circle cx="-1" cy="0" r="4.3" fill="none" stroke="#98a1ab" stroke-width="1" />
-              <path d="M3.3 0 L12.5 0" stroke="#98a1ab" stroke-width="1" />
-              <circle cx="-5.6" cy="-7.2" r="2.3" fill="#adb5bf" />
+
+              <ellipse class="tl__exhaust" cx="-33.5" cy="0" rx="4.6" ry="3.2" fill="url(#tl-exhaust)" />
+
+              <g stroke="#3b302c" stroke-width="0.7" stroke-linejoin="round">
+                <!-- Tailplanes and wings pass behind the fuselage -->
+                <path d="M-26.7 -3.3 L-26.3 -8.1 L-21.4 -7.4 L-16.4 -3.3 Z" fill="#d5c49c" />
+                <path d="M-26.7 3.3 L-26.3 8.1 L-21.4 7.4 L-16.4 3.3 Z" fill="#d5c49c" />
+                <path d="M-8.4 -13.4 L-0.5 -13.4 L7.9 -3.4 L-9.9 -3.4 Z" fill="#d5c49c" />
+                <path d="M-8.4 13.4 L-0.5 13.4 L7.9 3.4 L-9.9 3.4 Z" fill="#d5c49c" />
+
+                <g clip-path="url(#tl-jet-wings)" stroke="none">
+                  <g fill="#ad9868">
+                    <ellipse cx="1.4" cy="-6.2" rx="3.4" ry="1.9" transform="rotate(-32 1.4 -6.2)" />
+                    <ellipse cx="4.6" cy="-4.2" rx="2.3" ry="1.3" transform="rotate(-32 4.6 -4.2)" />
+                    <ellipse cx="1.4" cy="6.2" rx="3.4" ry="1.9" transform="rotate(32 1.4 6.2)" />
+                    <ellipse cx="4.6" cy="4.2" rx="2.3" ry="1.3" transform="rotate(32 4.6 4.2)" />
+                  </g>
+                  <g fill="#ece3cd">
+                    <ellipse cx="-6.9" cy="-10.6" rx="1.7" ry="1" transform="rotate(-70 -6.9 -10.6)" />
+                    <ellipse cx="-6.9" cy="10.6" rx="1.7" ry="1" transform="rotate(70 -6.9 10.6)" />
+                  </g>
+                </g>
+
+                <!-- Wingtip rails -->
+                <rect x="-8.8" y="-15" width="8.6" height="1.75" rx="0.85" fill="#cfd2d6" />
+                <rect x="-8.8" y="13.25" width="8.6" height="1.75" rx="0.85" fill="#cfd2d6" />
+
+                <!-- Roundels, four rings each, too small for outlines -->
+                <g stroke="none">
+                  <circle cx="-2.7" cy="-8.1" r="1.05" fill="#f0eee9" />
+                  <circle cx="-2.7" cy="-8.1" r="0.85" fill="#1f4fa0" />
+                  <circle cx="-2.7" cy="-8.1" r="0.52" fill="#f0eee9" />
+                  <circle cx="-2.7" cy="-8.1" r="0.28" fill="#cf2b2b" />
+                  <circle cx="-2.7" cy="8.1" r="1.05" fill="#f0eee9" />
+                  <circle cx="-2.7" cy="8.1" r="0.85" fill="#1f4fa0" />
+                  <circle cx="-2.7" cy="8.1" r="0.52" fill="#f0eee9" />
+                  <circle cx="-2.7" cy="8.1" r="0.28" fill="#cf2b2b" />
+                </g>
+
+                <!-- Exhaust housing, nozzle still glowing -->
+                <path d="M-27.4 -2.2 L-29.3 -2.2 Q-30.9 -2.2 -30.9 0 Q-30.9 2.2 -29.3 2.2 L-27.4 2.2 Z" fill="#4a4f5a" />
+                <ellipse cx="-29.9" cy="0" rx="0.75" ry="1.35" fill="#f5a623" stroke-width="0.4" />
+                <ellipse cx="-29.9" cy="0" rx="0.32" ry="0.7" fill="#ffe0a0" stroke="none" />
+
+                <!-- Fuselage over the roots, then its markings -->
+                <path d="M25.6 -0.75 C18.5 -2.2 13.5 -3 8.9 -3.35 L-9.9 -3.45 C-17.5 -3.4 -23.5 -2.9 -27.6 -2.25 L-27.6 2.25 C-23.5 2.9 -17.5 3.4 -9.9 3.45 L8.9 3.35 C13.5 3 18.5 2.2 25.6 0.75 Z" fill="#d5c49c" />
+
+                <g clip-path="url(#tl-jet-body)" stroke="none">
+                  <g fill="#ad9868">
+                    <ellipse cx="-14.5" cy="-1.3" rx="4.6" ry="1.5" />
+                    <ellipse cx="0.5" cy="1.5" rx="6.2" ry="1.5" />
+                    <ellipse cx="9.8" cy="1" rx="3.4" ry="1" />
+                  </g>
+                  <g fill="#ece3cd">
+                    <ellipse cx="-8.5" cy="1.7" rx="3.6" ry="1.3" />
+                    <ellipse cx="13.5" cy="-1.5" rx="4.4" ry="1" />
+                    <ellipse cx="-20.5" cy="-1.6" rx="2.6" ry="0.9" />
+                  </g>
+                </g>
+
+                <!-- Panel seams -->
+                <g stroke="#a4906a" stroke-width="0.25">
+                  <path d="M-10.1 -3.4 L-10.1 3.4" />
+                  <path d="M3.7 -3.3 L3.7 3.3" />
+                </g>
+
+                <!-- Dorsal spine panel with its warning stripe -->
+                <rect x="-27.1" y="-0.95" width="13.8" height="1.9" rx="0.95" fill="#e6dcc4" stroke-width="0.5" />
+                <rect x="-26.5" y="-0.32" width="3.3" height="0.64" rx="0.32" fill="#d94b45" stroke="none" />
+
+                <!-- Canopy, a thin glare along the top only -->
+                <path d="M11.6 0 Q17 -1.5 22.4 0 Q17 1.5 11.6 0 Z" fill="#4aa8e8" stroke-width="0.55" />
+                <path d="M13.4 -0.52 Q16.8 -1.12 20.4 -0.72" fill="none" stroke="#f2fbff" stroke-width="0.3" stroke-linecap="round" />
+                <path d="M18.8 -1 L18.8 1" stroke-width="0.3" />
+
+                <!-- Radome tip -->
+                <path d="M25 -0.95 L30.8 0 L25 0.95 Z" fill="#4a4f5a" />
+              </g>
             </svg>
           </div>
         </div>
@@ -375,7 +452,7 @@ import { milestones, isSample } from '../data/timeline';
   .tl__entry--end {
     --rise: 0.6rem;
     top: 50%;
-    left: 2.75rem; /* clear of the parked ship */
+    left: 3.25rem; /* clear of the parked jet */
     padding-left: 0;
     transform: translateY(-50%);
   }
@@ -443,8 +520,8 @@ import { milestones, isSample } from '../data/timeline';
     left: 0;
     top: 0;
     z-index: 3;
-    width: 52px;
-    height: 40px;
+    width: 64px;
+    height: 33px;
     transform-origin: 50% 50%;
     pointer-events: none;
   }
@@ -486,8 +563,8 @@ import { milestones, isSample } from '../data/timeline';
     }
 
     .tl__ship {
-      width: 44px;
-      height: 34px;
+      width: 54px;
+      height: 28px;
     }
   }
 </style>

@@ -3,11 +3,6 @@
 // The crew as this year's series of trading cards: heads as the large
 // cards, deputies below. Earlier crews live on as hologram busts over a
 // projector, one year at a time.
-//
-// Two skins, switchable from the header while the design is being
-// decided: Homage (the cards and the projector) and Light (the same
-// content as plain portraits). ?skin=light opens on Light. The switch is
-// for the showcase; remove it once a skin is chosen.
 import Section from './Section.astro';
 import CrewCard from './CrewCard.astro';
 import CrewHolo from './CrewHolo.astro';
@@ -17,15 +12,10 @@ const pad = (n: number) => String(n).padStart(2, '0');
 ---
 
 <Section id="crew" label="Crew">
-  <div class="crew" data-crew data-skin="homage">
+  <div class="crew" data-crew>
     <script is:inline>
-      // Before paint: open on the skin in the URL, or this browser's last pick
-      (function (el) {
-        var skin = new URLSearchParams(location.search).get('skin');
-        try { skin = skin || localStorage.getItem('crew-skin'); } catch (e) {}
-        if (skin === 'light' || skin === 'homage') el.dataset.skin = skin;
-        el.classList.add('is-live');
-      })(document.currentScript.parentElement);
+      // Before paint, so no year shows and then hides
+      document.currentScript.parentElement.classList.add('is-live');
     </script>
 
     <header class="crew__head">
@@ -33,13 +23,6 @@ const pad = (n: number) => String(n).padStart(2, '0');
       <div class="crew__notes">
         {isSample && <p class="crew__note">Sample crew. Replace them in src/data/crew.ts</p>}
         <p class="crew__note crew__note--flip">Tap a card to turn it over</p>
-      </div>
-      <div class="crew__skins" role="group" aria-labelledby="crew-skin-label">
-        <span class="crew__skins-label" id="crew-skin-label">Skin</span>
-        <span class="crew__skin-set">
-          <button class="crew__skin" type="button" data-skin-pick="homage" aria-pressed="true">Homage</button>
-          <button class="crew__skin" type="button" data-skin-pick="light" aria-pressed="false">Light</button>
-        </span>
       </div>
     </header>
 
@@ -95,10 +78,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
               aria-labelledby={`crew-year-${c.year}`}
               data-current={i === 0 ? '' : undefined}
             >
-              <p class="archive__caption">
-                <span class="archive__caption--homage">Recording · The {c.year} crew</span>
-                <span class="archive__caption--light">The {c.year} crew</span>
-              </p>
+              <p class="archive__caption">Recording · The {c.year} crew</p>
               <div class="crew__row archive__row" data-deal>
                 <ol class="crew__cards" role="list">
                   {c.members.map((m, k) => (
@@ -128,7 +108,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
     padding: clamp(4.5rem, 12vh, 7.5rem) clamp(1rem, 4vw, 2.5rem) clamp(4rem, 10vh, 6.5rem);
   }
 
-  /* ---------- Heading and the skin switch ---------- */
+  /* ---------- Heading ---------- */
 
   .crew__head {
     display: flex;
@@ -162,53 +142,6 @@ const pad = (n: number) => String(n).padStart(2, '0');
     font-size: 0.7rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-  }
-
-  /* Only the cards turn over; Light shows both sides at once */
-  .crew[data-skin='light'] .crew__note--flip { display: none; }
-
-  .crew__skins {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-    margin-left: auto;
-    align-self: center;
-  }
-
-  .crew__skins-label {
-    color: rgba(254, 218, 74, 0.6);
-    font-size: 0.68rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-  }
-
-  .crew__skin-set {
-    display: flex;
-    padding: 2px;
-    border: 1px solid rgba(254, 218, 74, 0.35);
-    border-radius: 999px;
-  }
-
-  .crew__skin {
-    padding: 0.42rem 0.9rem;
-    border: 0;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--yellow-dim);
-    font-family: 'News Cycle', system-ui, sans-serif;
-    font-size: 0.72rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: color 0.2s, background-color 0.2s;
-  }
-
-  .crew__skin:hover { color: var(--yellow); }
-
-  .crew__skin[aria-pressed='true'] {
-    background: var(--yellow);
-    color: #000;
-    cursor: default;
   }
 
   /* ---------- Rows of cards ---------- */
@@ -318,9 +251,9 @@ const pad = (n: number) => String(n).padStart(2, '0');
   .archive__year:hover { color: var(--yellow); border-color: rgba(254, 218, 74, 0.6); }
 
   .archive__year[aria-selected='true'] {
-    color: #000;
-    background: var(--yellow);
-    border-color: var(--yellow);
+    color: #001417;
+    background: var(--blue);
+    border-color: var(--blue);
     cursor: default;
   }
 
@@ -334,11 +267,12 @@ const pad = (n: number) => String(n).padStart(2, '0');
   .archive__stage {
     position: relative;
     margin-top: clamp(1.75rem, 5vh, 3rem);
+    padding: clamp(1.75rem, 5vh, 2.75rem) 0 clamp(3.5rem, 9vh, 5rem);
   }
 
   .archive__caption {
     margin: 0 0 clamp(1.5rem, 4vh, 2.25rem);
-    color: var(--yellow-dim);
+    color: rgba(75, 213, 238, 0.9);
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.22em;
@@ -352,26 +286,14 @@ const pad = (n: number) => String(n).padStart(2, '0');
   .crew.is-live .archive__panel:not([data-current]) { display: none; }
   .crew.is-live .archive__panel + .archive__panel { margin-top: 0; }
 
-  /* Each skin's own words */
-  .crew[data-skin='homage'] .archive__caption--light,
-  .crew[data-skin='light'] .archive__caption--homage { display: none; }
-
   /* Busts stand closer than cards and need room under them for names */
   .archive__row { row-gap: clamp(2rem, 5vh, 3rem); }
 
-  .archive__emitter { display: none; }
-
-  /* ---------- Homage: the projector ---------- */
-
-  .crew[data-skin='homage'] .archive__stage {
-    padding: clamp(1.75rem, 5vh, 2.75rem) 0 clamp(3.5rem, 9vh, 5rem);
-  }
+  /* ---------- The projector ---------- */
 
   /* The beam, spreading up from the emitter behind the holograms. The
      blur sits on the wrapper so it softens the clipped edges too. */
-  .archive__beam { display: none; }
-
-  .crew[data-skin='homage'] .archive__beam {
+  .archive__beam {
     position: absolute;
     left: 50%;
     bottom: 0.9rem;
@@ -383,7 +305,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
     pointer-events: none;
   }
 
-  .crew[data-skin='homage'] .archive__beam::before {
+  .archive__beam::before {
     content: '';
     position: absolute;
     inset: 0;
@@ -391,9 +313,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
     clip-path: polygon(31% 100%, 69% 100%, 100% 0, 0 0);
   }
 
-  .crew[data-skin='homage'] .archive__caption { color: rgba(75, 213, 238, 0.9); }
-
-  .crew[data-skin='homage'] .archive__emitter {
+  .archive__emitter {
     position: absolute;
     left: 50%;
     bottom: 0;
@@ -404,7 +324,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
   }
 
   /* The lit lens */
-  .crew[data-skin='homage'] .archive__emitter::after {
+  .archive__emitter::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -413,7 +333,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
   }
 
   /* The housing it sits in */
-  .crew[data-skin='homage'] .archive__emitter::before {
+  .archive__emitter::before {
     content: '';
     position: absolute;
     inset: 45% 8% -45%;
@@ -422,20 +342,14 @@ const pad = (n: number) => String(n).padStart(2, '0');
     box-shadow: 0 0.5rem 1.2rem rgba(0, 0, 0, 0.7);
   }
 
-  .crew[data-skin='homage'] .archive__year[aria-selected='true'] {
-    color: #001417;
-    background: var(--blue);
-    border-color: var(--blue);
-  }
-
   @media (prefers-reduced-motion: no-preference) {
-    .crew[data-skin='homage'] .archive__emitter::after {
+    .archive__emitter::after {
       animation: archive-hum 3.2s ease-in-out infinite;
     }
 
     /* Changing years drops the signal to a line, then the next crew
        resolves up out of it */
-    .crew[data-skin='homage'] .archive__panel {
+    .archive__panel {
       transform-origin: 50% 100%;
       transition:
         transform 0.2s ease-in,
@@ -443,13 +357,13 @@ const pad = (n: number) => String(n).padStart(2, '0');
         filter 0.2s ease-in;
     }
 
-    .crew[data-skin='homage'] .archive__stage.is-tuning .archive__panel[data-current] {
+    .archive__stage.is-tuning .archive__panel[data-current] {
       transform: scaleY(0.02);
       opacity: 0.5;
       filter: brightness(2.4);
     }
 
-    .crew[data-skin='homage'].is-live .archive__stage.is-tuned .archive__panel[data-current] {
+    .crew.is-live .archive__stage.is-tuned .archive__panel[data-current] {
       animation: archive-in 0.6s var(--ease-out);
     }
   }
@@ -473,39 +387,17 @@ const pad = (n: number) => String(n).padStart(2, '0');
     crew.dataset.ready = 'true';
 
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const isHomage = () => crew.dataset.skin === 'homage';
 
-    /* ---- Turning cards over ---- */
+    /* ---- Turning cards over. Every card starts face up, with its back
+       taken out of the page until it is turned. ---- */
     const flip = (card: HTMLElement, on = !card.classList.contains('is-flipped')) => {
       card.classList.toggle('is-flipped', on);
       card.querySelector('[data-card-flip]')?.setAttribute('aria-pressed', String(on));
       const back = card.querySelector<HTMLElement>('[data-card-back]');
-      // Under Homage the back is only there while it faces up
-      if (back) back.inert = isHomage() && !on;
+      if (back) back.inert = !on;
     };
 
-    /* ---- Skin switch (showcase only) ---- */
-    const picks = Array.from(crew.querySelectorAll<HTMLButtonElement>('[data-skin-pick]'));
-    const cards = Array.from(crew.querySelectorAll<HTMLElement>('[data-flippable]'));
-
-    const setSkin = (skin: string, remember: boolean) => {
-      crew.dataset.skin = skin;
-      for (const b of picks) b.setAttribute('aria-pressed', String(b.dataset.skinPick === skin));
-      for (const c of cards) flip(c, false);
-      if (!remember) return;
-      try {
-        localStorage.setItem('crew-skin', skin);
-      } catch {}
-      const url = new URL(window.location.href);
-      if (skin === 'light') url.searchParams.set('skin', 'light');
-      else url.searchParams.delete('skin');
-      history.replaceState(history.state, '', url);
-    };
-
-    setSkin(crew.dataset.skin === 'light' ? 'light' : 'homage', false);
-    for (const b of picks) {
-      b.addEventListener('click', () => setSkin(b.dataset.skinPick as string, true));
-    }
+    for (const c of crew.querySelectorAll<HTMLElement>('[data-flippable]')) flip(c, false);
 
     /* ---- Turn a card over: the corner button for keyboards, anywhere on
        the card for pointers ---- */
@@ -513,7 +405,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
       const target = e.target as Element;
       if (target.closest('a')) return;
       const card = target.closest<HTMLElement>('[data-flippable]');
-      if (card && isHomage()) flip(card);
+      if (card) flip(card);
     });
 
     /* ---- Deal each row in as it scrolls into view ---- */
@@ -551,7 +443,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
         panels[i].querySelector('[data-deal]')?.classList.add('is-dealt');
       };
       window.clearTimeout(tuning);
-      if (still || !isHomage()) {
+      if (still) {
         stage.classList.remove('is-tuning', 'is-tuned');
         show();
         return;

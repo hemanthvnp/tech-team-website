@@ -1,0 +1,787 @@
+---
+// src/components/projects/NowShowing.astro
+// Projects skin: each project is a feature at a 1977 picture house. Roll
+// tickets pick the feature. The marquee over the screen changes its letters
+// one at a time, the screen wipes to the next picture the way the film
+// cuts between scenes, and the credits run as the billing block from the
+// foot of a one-sheet.
+//
+// Without JS every feature's synopsis and credits show, under the first
+// picture.
+import { projects, host } from '../../data/projects';
+import { crewHref } from '../../data/crew';
+
+const roman = (year: string) => {
+  let n = Number(year);
+  let out = '';
+  for (const [v, s] of [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']] as const) {
+    while (n >= v) { out += s; n -= v; }
+  }
+  return out;
+};
+
+// The marquee's second line; only the year changes between features
+const byline = (year: string) => `A TECH TEAM PICTURE · ${year}`;
+
+// Hung by hand: no two letters sit quite straight
+const tilts = [-1.1, 0.7, -0.4, 1.2, -0.8, 0.3, 1, -0.6, 0.5, -1.3];
+const drops = [0, 1, -1, 2, 0, -1, 1, 0, -2, 1];
+const tile = (k: number) => `--tilt: ${tilts[k % tilts.length]}deg; --drop: ${drops[k % drops.length] * 0.012}em`;
+
+const first = projects[0];
+const bulbs = Array.from({ length: 30 }, (_, i) => i);
+---
+
+<div class="ns" data-ns>
+  <div class="tickets" role="tablist" aria-label="Features">
+    {projects.map((p, i) => (
+      <button
+        class="ticket"
+        type="button"
+        role="tab"
+        id={`ns-tab-${p.slug}`}
+        aria-controls={`ns-panel-${p.slug}`}
+        aria-selected={i === 0 ? 'true' : 'false'}
+        tabindex={i === 0 ? 0 : -1}
+        style={`--i: ${i}`}
+      >
+        <span class="ticket__paper">
+          <span class="ticket__admit" aria-hidden="true">Admit one</span>
+          <span class="ticket__name">{p.name}</span>
+          <span class="ticket__year">{p.year}</span>
+        </span>
+      </button>
+    ))}
+  </div>
+
+  <div class="house">
+    <!-- The sign over the screen: the name, then the byline, hung letter by letter -->
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee__bulbs">{bulbs.map((b) => <span class="marquee__bulb" style={`--b: ${b % 3}`}></span>)}</div>
+      <div class="marquee__panel">
+        <p class="marquee__line marquee__line--name" data-letters="name">
+          {[...first.name.toUpperCase()].map((c, k) => (
+            <span class:list={['marquee__l', { 'marquee__l--sp': c === ' ' }]} style={tile(k)}>{c}</span>
+          ))}
+        </p>
+        <p class="marquee__line marquee__line--by" data-letters="by">
+          {[...byline(first.year)].map((c, k) => (
+            <span class:list={['marquee__l', { 'marquee__l--sp': c === ' ' }]} style={tile(k + 3)}>{c}</span>
+          ))}
+        </p>
+      </div>
+      <div class="marquee__bulbs">{bulbs.map((b) => <span class="marquee__bulb" style={`--b: ${(b + 1) % 3}`}></span>)}</div>
+    </div>
+
+    <div class="screen">
+      <img class="screen__spill" src={first.screen} alt="" aria-hidden="true" data-spill />
+      <div class="screen__reel">
+        {projects.map((p, i) => (
+          <div class="screen__frame" data-current={i === 0 ? '' : undefined} data-screen={p.screen}>
+            {p.recording ? (
+              <video data-reel src={p.recording} poster={p.screen} muted loop playsinline preload="none" aria-label={p.screenAlt}></video>
+            ) : (
+              <img src={p.screen} alt={p.screenAlt} loading="lazy" decoding="async" />
+            )}
+          </div>
+        ))}
+        <span class="screen__grain" aria-hidden="true"></span>
+      </div>
+    </div>
+
+    <!-- The row in front of us, its tops catching the light off the screen -->
+    <svg class="seats" viewBox="0 18 1000 62" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="ns-seat" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#2a261f" />
+          <stop offset="0.22" stop-color="#0d0c0a" />
+          <stop offset="1" stop-color="#030303" />
+        </linearGradient>
+      </defs>
+      <g fill="url(#ns-seat)">
+        {Array.from({ length: 12 }, (_, i) => {
+          const x = 6 + i * 83;
+          return <path d={`M${x} 80V36q0-16 16-16h45q16 0 16 16v44Z`} />;
+        })}
+      </g>
+    </svg>
+  </div>
+
+  <div class="bills">
+    {projects.map((p, i) => (
+      <div
+        class="bill"
+        role="tabpanel"
+        id={`ns-panel-${p.slug}`}
+        aria-labelledby={`ns-tab-${p.slug}`}
+        data-current={i === 0 ? '' : undefined}
+      >
+        <h3 class="sr">{p.name}</h3>
+        <div class="bill__synopsis">
+          <p class="bill__summary">{p.summary}</p>
+          <p class="bill__story">{p.story}</p>
+        </div>
+
+        <a class="bill__go" href={p.url} target="_blank" rel="noopener">
+          <span class="bill__go-main">Open {p.name}</span>
+          <span class="bill__go-sub">Now playing at {host(p.url)}</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 17 17 7M9 7h8v8" /></svg>
+        </a>
+
+        <p class="billing">
+          <span class="billing__unit">
+            <span class="billing__name">Tech Team</span>
+            <span class="billing__small">presents</span>
+          </span>
+          <span class="billing__unit billing__unit--title">
+            <span class="billing__title">{p.name}</span>
+          </span>
+          {p.credits.map((c) => {
+            const href = crewHref(c.name);
+            return (
+              <span class="billing__unit">
+                <span class="billing__small">{c.part} by</span>
+                {href ? (
+                  <a class="billing__name" href={href} data-crew-link>{c.name}</a>
+                ) : (
+                  <span class="billing__name">{c.name}</span>
+                )}
+              </span>
+            );
+          })}
+          <span class="billing__unit">
+            <span class="billing__small">Released</span>
+            <span class="billing__name" aria-hidden="true">{roman(p.year)}</span>
+            <span class="sr">{p.year}</span>
+          </span>
+        </p>
+      </div>
+    ))}
+  </div>
+</div>
+
+<style>
+  .ns {
+    --yellow: #feda4a;
+    --yellow-dim: rgba(254, 218, 74, 0.74);
+    --lit: #fdf6e3; /* the marquee's backlit panel */
+    --letter: #141210;
+    --letter-red: #b3201a;
+    --ticket: #c8321f;
+    --ticket-dim: #5a1810;
+    --ticket-ink: #fff1e2;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+    container: ns / inline-size;
+    box-sizing: border-box;
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 0 clamp(1rem, 4vw, 2.5rem);
+  }
+
+  .sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* ---------- The roll tickets that pick a feature ---------- */
+
+  .tickets {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    max-width: 30rem;
+    margin: 0 auto;
+  }
+
+  @container ns (min-width: 44rem) {
+    .tickets {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1rem;
+      max-width: none;
+    }
+  }
+
+  .ticket {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    transform: rotate(calc((var(--i) - 1.5) * 0.6deg));
+    transition:
+      transform 0.45s var(--ease-out),
+      filter 0.45s var(--ease-out);
+  }
+
+  /* The notched ends and the perforations; the shadow sits on the button
+     outside, where the mask can't cut it off */
+  .ticket__paper {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    gap: 0.2rem;
+    min-width: 9rem;
+    padding: 0.7rem 1.6rem 0.75rem;
+    background: var(--ticket-dim);
+    color: rgba(255, 229, 205, 0.78);
+    -webkit-mask:
+      radial-gradient(circle 0.42rem at 0 50%, #0000 97%, #000) left / 51% 100% no-repeat,
+      radial-gradient(circle 0.42rem at 100% 50%, #0000 97%, #000) right / 51% 100% no-repeat;
+    mask:
+      radial-gradient(circle 0.42rem at 0 50%, #0000 97%, #000) left / 51% 100% no-repeat,
+      radial-gradient(circle 0.42rem at 100% 50%, #0000 97%, #000) right / 51% 100% no-repeat;
+    transition:
+      background-color 0.25s,
+      color 0.25s;
+  }
+
+  .ticket__paper::before,
+  .ticket__paper::after {
+    content: '';
+    position: absolute;
+    top: 0.3rem;
+    bottom: 0.3rem;
+    border-left: 2px dotted rgba(255, 229, 205, 0.32);
+  }
+
+  .ticket__paper::before { left: 0.8rem; }
+  .ticket__paper::after { right: 0.8rem; }
+
+  .ticket__admit {
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+  }
+
+  .ticket__name {
+    font-family: 'Anton', sans-serif;
+    font-size: 1.3rem;
+    line-height: 1.05;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .ticket__year {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ticket:hover .ticket__paper { background: #7a2216; color: var(--ticket-ink); }
+
+  .ticket[aria-selected='true'] {
+    transform: translateY(-0.3rem) rotate(-1.5deg);
+    filter: drop-shadow(0 0.7rem 0.9rem rgba(0, 0, 0, 0.75));
+    cursor: default;
+  }
+
+  .ticket[aria-selected='true'] .ticket__paper {
+    background: var(--ticket);
+    color: var(--ticket-ink);
+  }
+
+  .ticket:focus-visible { outline: none; }
+  .ticket:focus-visible .ticket__paper { outline: 2px solid var(--yellow); outline-offset: -5px; }
+
+  /* ---------- The house: marquee, screen, seats ---------- */
+
+  .house {
+    position: relative;
+    margin-top: clamp(2.5rem, 6vh, 3.5rem);
+  }
+
+  .marquee {
+    position: relative;
+    z-index: 2;
+    box-sizing: border-box;
+    width: min(100%, 46rem);
+    margin: 0 auto;
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.4rem;
+    background: linear-gradient(#211d17, #110f0c);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.6),
+      0 1.2rem 2.4rem -0.8rem rgba(0, 0, 0, 0.9);
+  }
+
+  .marquee__bulbs {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 0.2rem;
+  }
+
+  .marquee__bulb {
+    width: 0.5rem;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #fffbea, #ffd27a 45%, #b57a26 80%);
+    box-shadow: 0 0 0.45rem 0.05rem rgba(255, 196, 102, 0.75);
+  }
+
+  /* Half the bulbs on a narrow sign */
+  @container ns (max-width: 36rem) {
+    .marquee__bulb:nth-child(2n) { display: none; }
+  }
+
+  .marquee__panel {
+    display: grid;
+    justify-items: center;
+    gap: 0.35rem;
+    margin: 0.5rem 0;
+    padding: clamp(0.8rem, 2.4cqi, 1.3rem) 1rem clamp(0.7rem, 2cqi, 1.1rem);
+    border-radius: 0.2rem;
+    background:
+      radial-gradient(120% 140% at 50% 50%, #fffdf6 30%, rgba(253, 246, 227, 0) 75%),
+      var(--lit);
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.18),
+      inset 0 0 1.6rem rgba(214, 186, 120, 0.45);
+  }
+
+  /* Each line hangs on its rails */
+  .marquee__line {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: center;
+    margin: 0;
+    padding: 0.08em 0;
+    background:
+      linear-gradient(rgba(60, 50, 30, 0.22), rgba(60, 50, 30, 0.22)) top / 100% 1px no-repeat,
+      linear-gradient(rgba(60, 50, 30, 0.22), rgba(60, 50, 30, 0.22)) bottom / 100% 1px no-repeat;
+    perspective: 20em;
+    white-space: nowrap;
+  }
+
+  .marquee__line--name {
+    color: var(--letter);
+    font-family: 'Anton', sans-serif;
+    font-size: clamp(2.3rem, 10cqi, 4.6rem);
+    line-height: 1.08;
+    letter-spacing: 0.02em;
+  }
+
+  .marquee__line--by {
+    color: var(--letter-red);
+    font-family: 'Anton', sans-serif;
+    font-size: clamp(0.72rem, 2cqi, 1.05rem);
+    line-height: 1.2;
+    letter-spacing: 0.12em;
+  }
+
+  .marquee__l {
+    display: inline-block;
+    min-width: 0.2em;
+    rotate: var(--tilt);
+    translate: 0 var(--drop);
+    transform-origin: 50% 0;
+    backface-visibility: hidden;
+  }
+
+  .marquee__l--sp { width: 0.32em; }
+
+  /* ---- The screen ---- */
+
+  .screen {
+    position: relative;
+    width: min(100%, 60rem);
+    margin: clamp(1.5rem, 4vh, 2.5rem) auto 0;
+  }
+
+  /* The picture's own light, thrown back onto the room around it */
+  .screen__spill {
+    position: absolute;
+    inset: -8% -10%;
+    width: 120%;
+    height: 116%;
+    object-fit: cover;
+    filter: blur(56px) saturate(1.4);
+    opacity: 0.32;
+    pointer-events: none;
+  }
+
+  .screen__reel {
+    position: relative;
+    display: grid;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    border-radius: 2px;
+    background: #0e0e0e;
+    box-shadow: 0 2.5rem 4rem -1.5rem rgba(0, 0, 0, 0.95);
+  }
+
+  .screen__frame {
+    grid-area: 1 / 1;
+    visibility: hidden;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .screen__frame[data-current] { z-index: 2; visibility: visible; }
+  .screen__frame.is-leaving { z-index: 1; visibility: visible; }
+
+  .screen__frame > img,
+  .screen__frame > video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  /* The projector's hot spot and the film's grain */
+  .screen__grain {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 75% 70% at 50% 46%, transparent 55%, rgba(0, 0, 0, 0.42)),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 .5'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode: overlay;
+    opacity: 0.55;
+  }
+
+  /* ---- Seats ---- */
+
+  .seats {
+    position: relative;
+    z-index: 4;
+    display: block;
+    width: min(100%, 64rem);
+    margin: clamp(0.5rem, 1.6cqi, 1.1rem) auto 0;
+  }
+
+  /* ---------- Synopsis, the way in, and the billing block ---------- */
+
+  .bills { margin-top: clamp(2.25rem, 5vh, 3.25rem); }
+
+  .bill {
+    display: grid;
+    grid-template-areas: 'syn' 'go' 'billing';
+    gap: 1.75rem;
+  }
+
+  @container ns (min-width: 48rem) {
+    .bill {
+      grid-template-columns: 1fr auto;
+      grid-template-areas:
+        'syn go'
+        'billing billing';
+      column-gap: 3rem;
+      align-items: start;
+    }
+  }
+
+  .bills.is-live .bill:not([data-current]) { display: none; }
+  .bills:not(.is-live) .bill + .bill { margin-top: 4rem; }
+
+  .bill__synopsis { grid-area: syn; }
+
+  .bill__summary {
+    max-width: 36ch;
+    margin: 0;
+    color: var(--yellow);
+    font-size: clamp(1.12rem, 2.4cqi, 1.42rem);
+    font-weight: 700;
+    line-height: 1.35;
+    text-wrap: pretty;
+  }
+
+  .bill__story {
+    max-width: 60ch;
+    margin: 0.85rem 0 0;
+    color: var(--yellow-dim);
+    font-size: 1rem;
+    line-height: 1.6;
+    text-wrap: pretty;
+  }
+
+  .bill__go {
+    grid-area: go;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    column-gap: 1.25rem;
+    row-gap: 0.15rem;
+    justify-self: start;
+    min-width: 15rem;
+    padding: 0.95rem 1.1rem 0.95rem 1.3rem;
+    border-radius: 3px;
+    background: var(--yellow);
+    color: #000;
+    text-decoration: none;
+    box-shadow: 0 0.4rem 1rem -0.4rem rgba(254, 218, 74, 0);
+    transition:
+      transform 0.35s var(--ease-out),
+      box-shadow 0.35s var(--ease-out),
+      background-color 0.2s;
+  }
+
+  .bill__go:hover {
+    background: #ffe46e;
+    transform: translateY(-2px);
+    box-shadow: 0 0.8rem 1.4rem -0.6rem rgba(0, 0, 0, 0.9);
+  }
+
+  .bill__go-main {
+    font-family: 'Anton', sans-serif;
+    font-size: 1.18rem;
+    line-height: 1.1;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .bill__go-sub {
+    grid-row: 2;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .bill__go svg {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    width: 1.5rem;
+    height: 1.5rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.35s var(--ease-out);
+  }
+
+  .bill__go:hover svg { transform: translate(2px, -2px); }
+
+  .bill__go:focus-visible { outline-offset: 5px; }
+
+  /* The billing block: tiny connecting words stacked beside tall, narrow
+     names, all of it set as one centred slab */
+  .billing {
+    grid-area: billing;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.25rem 0.95rem;
+    max-width: 50rem;
+    margin: 0.75rem auto 0;
+    padding-top: 1.75rem;
+    border-top: 1px solid rgba(254, 218, 74, 0.16);
+    color: var(--yellow);
+    text-align: center;
+  }
+
+  .billing__unit {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .billing__small {
+    max-width: 4.6em;
+    color: var(--yellow-dim);
+    font-size: 0.6rem;
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: 0.08em;
+    text-align: right;
+    text-transform: uppercase;
+  }
+
+  .billing__unit:first-child .billing__small { text-align: left; }
+
+  .billing__name,
+  .billing__title {
+    font-family: 'Six Caps', 'Anton', sans-serif;
+    line-height: 0.9;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .billing__name { font-size: clamp(2rem, 4.6cqi, 2.75rem); }
+  .billing__title { font-size: clamp(3.2rem, 8cqi, 4.6rem); letter-spacing: 0.06em; }
+
+  a.billing__name {
+    color: inherit;
+    text-decoration: none;
+    background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat;
+    transition: background-size 0.35s var(--ease-out), color 0.2s;
+  }
+
+  a.billing__name:hover {
+    color: #fff3b0;
+    background-size: 100% 1px;
+  }
+
+  /* ---------- Motion ---------- */
+
+  @media (prefers-reduced-motion: no-preference) {
+    /* Each bulb lit for a third of the beat, so the light runs round */
+    .marquee__bulb {
+      animation: ns-chase 1.2s linear infinite;
+      animation-delay: calc(var(--b) * -0.4s);
+    }
+
+    .screen__grain { animation: ns-grain 0.4s steps(4) infinite; }
+
+    .screen__frame.is-wiping { animation: ns-wipe 0.8s cubic-bezier(0.65, 0, 0.35, 1); }
+  }
+
+  @keyframes ns-chase {
+    0%, 33% { opacity: 1; }
+    33.4%, 100% { opacity: 0.3; }
+  }
+
+  @keyframes ns-grain {
+    0% { background-position: 0 0, 0 0; }
+    25% { background-position: 0 0, -40px 60px; }
+    50% { background-position: 0 0, 70px -30px; }
+    75% { background-position: 0 0, -90px -80px; }
+    100% { background-position: 0 0, 30px 90px; }
+  }
+
+  /* The film's own cut: a hard edge crossing the screen */
+  @keyframes ns-wipe {
+    from { clip-path: inset(0 100% 0 0); }
+    to { clip-path: inset(0 0 0 0); }
+  }
+</style>
+
+<script>
+  function initShowing() {
+    const ns = document.querySelector<HTMLElement>('[data-ns]');
+    if (!ns || ns.dataset.ready === 'true') return;
+    ns.dataset.ready = 'true';
+
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const tabs = Array.from(ns.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    const bills = ns.querySelector<HTMLElement>('.bills') as HTMLElement;
+    const panels = tabs.map((t) => document.getElementById(t.getAttribute('aria-controls') as string) as HTMLElement);
+    const frames = Array.from(ns.querySelectorAll<HTMLElement>('.screen__frame'));
+    const spill = ns.querySelector<HTMLImageElement>('[data-spill]') as HTMLImageElement;
+    const nameLine = ns.querySelector<HTMLElement>('[data-letters="name"]') as HTMLElement;
+    const byLine = ns.querySelector<HTMLElement>('[data-letters="by"]') as HTMLElement;
+    const names = tabs.map((t) => t.querySelector('.ticket__name')?.textContent ?? '');
+    const years = tabs.map((t) => t.querySelector('.ticket__year')?.textContent ?? '');
+
+    bills.classList.add('is-live');
+
+    const tilts = [-1.1, 0.7, -0.4, 1.2, -0.8, 0.3, 1, -0.6, 0.5, -1.3];
+    const drops = [0, 1, -1, 2, 0, -1, 1, 0, -2, 1];
+
+    /* ---- The marquee: take each letter down and hang the new one ---- */
+    const hang = (line: HTMLElement, text: string, offset: number) => {
+      const chars = [...text];
+      const tiles = Array.from(line.children) as HTMLElement[];
+      const n = Math.max(chars.length, tiles.length);
+      for (let k = 0; k < n; k++) {
+        let t = tiles[k];
+        const want = chars[k] ?? '';
+        if (!t) {
+          t = document.createElement('span');
+          t.className = 'marquee__l';
+          t.style.setProperty('--tilt', `${tilts[(k + offset) % tilts.length]}deg`);
+          t.style.setProperty('--drop', `${drops[(k + offset) % drops.length] * 0.012}em`);
+          line.append(t);
+        }
+        if (t.textContent === want) continue;
+        const set = () => {
+          if (!want) return t.remove();
+          t.textContent = want;
+          t.classList.toggle('marquee__l--sp', want === ' ');
+        };
+        if (still) {
+          set();
+          continue;
+        }
+        t.getAnimations().forEach((a) => a.cancel());
+        const off = t.animate([{ transform: 'rotateX(0)' }, { transform: 'rotateX(90deg)' }], {
+          duration: 150,
+          delay: k * 38,
+          easing: 'cubic-bezier(0.5, 0, 0.75, 0)',
+          fill: 'forwards',
+        });
+        off.finished
+          .then(() => {
+            set();
+            if (!want) return;
+            t.animate([{ transform: 'rotateX(-90deg)' }, { transform: 'rotateX(0)' }], {
+              duration: 360,
+              easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+            });
+            off.cancel();
+          })
+          .catch(() => {});
+      }
+    };
+
+    let at = 0;
+    let cut = 0;
+
+    const select = (i: number) => {
+      if (i === at) return;
+      tabs.forEach((t, k) => {
+        t.setAttribute('aria-selected', String(k === i));
+        t.tabIndex = k === i ? 0 : -1;
+      });
+      panels.forEach((p, k) => p.toggleAttribute('data-current', k === i));
+
+      /* The screen cuts to the next picture */
+      const prev = frames[at];
+      const next = frames[i];
+      const token = ++cut;
+      for (const f of frames) f.classList.remove('is-leaving', 'is-wiping');
+      prev.removeAttribute('data-current');
+      next.setAttribute('data-current', '');
+      if (!still) {
+        prev.classList.add('is-leaving');
+        next.classList.add('is-wiping');
+        next.addEventListener(
+          'animationend',
+          () => {
+            if (token !== cut) return;
+            next.classList.remove('is-wiping');
+            prev.classList.remove('is-leaving');
+          },
+          { once: true },
+        );
+      }
+      spill.src = next.dataset.screen as string;
+
+      hang(nameLine, names[i].toUpperCase(), 0);
+      hang(byLine, `A TECH TEAM PICTURE · ${years[i]}`, 3);
+      at = i;
+    };
+
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => select(i));
+      t.addEventListener('keydown', (e) => {
+        const last = tabs.length - 1;
+        const to =
+          e.key === 'ArrowRight' || e.key === 'ArrowDown' ? (i === last ? 0 : i + 1)
+          : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? (i === 0 ? last : i - 1)
+          : e.key === 'Home' ? 0
+          : e.key === 'End' ? last
+          : -1;
+        if (to < 0) return;
+        e.preventDefault();
+        tabs[to].focus();
+        select(to);
+      });
+    });
+  }
+
+  initShowing();
+  document.addEventListener('astro:page-load', initShowing);
+</script>

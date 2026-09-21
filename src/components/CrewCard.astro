@@ -7,7 +7,7 @@
 //
 // Under the Light skin (see Crew.astro) the same content is set plainly:
 // a portrait, the name and role, the back's line underneath.
-import type { CrewMember } from '../data/crew';
+import { crewId, type CrewMember } from '../data/crew';
 
 interface Props {
   member: CrewMember;
@@ -42,6 +42,7 @@ const lean = leans[index % leans.length];
 ---
 
 <li
+  id={crewId(member.name)}
   class:list={['card', `card--${tier}`]}
   style={`--i: ${index}; --lean: ${lean}deg; --sky-a: ${skyA}; --sky-b: ${skyB}`}
   data-flippable
@@ -519,6 +520,29 @@ const lean = leans[index % leans.length];
   }
 
   :global([data-skin='homage']) .card { --deal-spin: calc(var(--lean) * 4); }
+
+  /* ---- Called from a project credit (Projects.astro): a ring rings out
+     around the card twice, so the eye lands on the right one ---- */
+
+  .card { scroll-margin-top: calc(var(--nav-h, 4rem) + 2rem); }
+
+  .card.is-called .card__body {
+    outline: 2px solid transparent;
+    outline-offset: 0.3rem;
+    animation: card-called 0.8s var(--ease-out) 2;
+  }
+
+  @keyframes card-called {
+    from { outline-color: #feda4a; outline-offset: 0.2rem; }
+    to { outline-color: rgba(254, 218, 74, 0); outline-offset: 1.1rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card.is-called .card__body {
+      animation: none;
+      outline-color: #feda4a;
+    }
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .card__body,

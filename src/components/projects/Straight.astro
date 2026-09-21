@@ -1,0 +1,241 @@
+---
+// src/components/projects/Straight.astro
+// Projects skin: the same content with no homage. Every project is shown at
+// once, one after another, picture beside words, alternating sides on a
+// wide screen. The counterpart to the Crew's Light skin.
+import { projects, host } from '../../data/projects';
+import { crewHref } from '../../data/crew';
+---
+
+<div class="st">
+  <ol class="st__list">
+    {projects.map((p) => (
+      <li class="st__item">
+        <article class="st__project" aria-labelledby={`st-${p.slug}`}>
+          <div class="st__media">
+            {p.recording ? (
+              <video data-reel src={p.recording} poster={p.screen} muted loop playsinline preload="none" aria-label={p.screenAlt}></video>
+            ) : (
+              <img src={p.screen} alt={p.screenAlt} loading="lazy" decoding="async" />
+            )}
+          </div>
+
+          <div class="st__text">
+            <h3 class="st__name" id={`st-${p.slug}`}>
+              {p.name} <span class="st__year">{p.year}</span>
+            </h3>
+            <p class="st__summary">{p.summary}</p>
+            <p class="st__story">{p.story}</p>
+
+            <dl class="st__credits">
+              {p.credits.map((c) => {
+                const href = crewHref(c.name);
+                return (
+                  <div>
+                    <dt>{c.part}</dt>
+                    <dd>{href ? <a href={href} data-crew-link>{c.name}</a> : c.name}</dd>
+                  </div>
+                );
+              })}
+            </dl>
+
+            <a class="st__go" href={p.url} target="_blank" rel="noopener">
+              Open {p.name}
+              <span class="st__host">{host(p.url)}</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 17 17 7M9 7h8v8" /></svg>
+            </a>
+          </div>
+        </article>
+      </li>
+    ))}
+  </ol>
+</div>
+
+<style>
+  .st {
+    --yellow: #feda4a;
+    --yellow-dim: rgba(254, 218, 74, 0.74);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+    container: st / inline-size;
+    box-sizing: border-box;
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 0 clamp(1rem, 4vw, 2.5rem);
+  }
+
+  .st__list {
+    display: grid;
+    gap: clamp(4rem, 11vh, 7rem);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .st__project {
+    display: grid;
+    gap: 1.6rem;
+  }
+
+  @container st (min-width: 52rem) {
+    .st__project {
+      grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+      align-items: center;
+      column-gap: clamp(2.5rem, 5cqi, 4rem);
+    }
+
+    /* Every picture the same size, whichever side it's on */
+    .st__item:nth-child(even) .st__project { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+    .st__item:nth-child(even) .st__media { order: 2; }
+  }
+
+  .st__media {
+    overflow: hidden;
+    border-radius: 6px;
+    background: #0e0e0e;
+    box-shadow:
+      0 0 0 1px rgba(254, 218, 74, 0.16),
+      0 1.5rem 3rem -1.5rem rgba(0, 0, 0, 0.9);
+  }
+
+  .st__media img,
+  .st__media video {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .st__name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem 0.9rem;
+    margin: 0;
+    color: var(--yellow);
+    font-family: 'Anton', sans-serif;
+    font-weight: 400;
+    font-size: clamp(2.2rem, 5cqi, 3.1rem);
+    line-height: 1;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .st__year {
+    color: var(--yellow-dim);
+    font-family: 'News Cycle', system-ui, sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .st__summary {
+    max-width: 40ch;
+    margin: 1rem 0 0;
+    color: var(--yellow);
+    font-size: 1.15rem;
+    font-weight: 700;
+    line-height: 1.4;
+    text-wrap: pretty;
+  }
+
+  .st__story {
+    max-width: 60ch;
+    margin: 0.75rem 0 0;
+    color: var(--yellow-dim);
+    font-size: 1rem;
+    line-height: 1.6;
+    text-wrap: pretty;
+  }
+
+  .st__credits {
+    display: grid;
+    gap: 0.4rem;
+    margin: 1.5rem 0 0;
+    padding-top: 1.1rem;
+    border-top: 1px solid rgba(254, 218, 74, 0.16);
+  }
+
+  .st__credits div {
+    display: grid;
+    grid-template-columns: 7rem 1fr;
+    align-items: baseline;
+    gap: 1rem;
+  }
+
+  .st__credits dt {
+    color: var(--yellow-dim);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .st__credits dd {
+    margin: 0;
+    color: var(--yellow);
+    font-size: 0.98rem;
+    font-weight: 700;
+  }
+
+  .st__credits a {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: rgba(254, 218, 74, 0.35);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.28em;
+    transition: text-decoration-color 0.2s;
+  }
+
+  .st__credits a:hover { text-decoration-color: var(--yellow); }
+
+  .st__go {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem 0.7rem;
+    margin-top: 1.6rem;
+    padding: 0.75rem 1.05rem 0.75rem 1.2rem;
+    border: 1px solid rgba(254, 218, 74, 0.55);
+    border-radius: 999px;
+    color: var(--yellow);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition:
+      background-color 0.2s,
+      color 0.2s,
+      border-color 0.2s;
+  }
+
+  .st__host {
+    color: var(--yellow-dim);
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    transition: color 0.2s;
+  }
+
+  .st__go svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.35s var(--ease-out);
+  }
+
+  .st__go:hover {
+    border-color: var(--yellow);
+    background: var(--yellow);
+    color: #000;
+  }
+
+  .st__go:hover .st__host { color: rgba(0, 0, 0, 0.7); }
+  .st__go:hover svg { transform: translate(2px, -2px); }
+  .st__go:focus-visible { outline-offset: 4px; }
+</style>

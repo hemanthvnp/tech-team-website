@@ -1,0 +1,824 @@
+---
+// src/components/projects/Briefing.astro
+// Projects skin: the war room before the trench run. Pick a target and the
+// display traces its plans in vector light, then a scan line resolves them
+// into the real screen and locks onto its main feature. The squadron is the
+// crew who built it; Launch opens it live.
+//
+// The plans are traced from the screenshot itself, by finding its edges on
+// a canvas, so a real screenshot gets real plans with nothing extra to
+// supply. Without JS, with reduced motion, or if the trace can't run, the
+// display shows the picture straight away.
+import { projects, host } from '../../data/projects';
+import { crewHref } from '../../data/crew';
+
+const first = projects[0];
+---
+
+<div class="bf" data-bf>
+  <div class="bf__room">
+    <div class="bf__display">
+      <div class="bf__bezel">
+        <p class="bf__hud" aria-hidden="true">
+          <span>Target <span data-hud-n>1</span> of {projects.length} · <span data-hud-name>{first.name}</span></span>
+          <span class="bf__hud-state" data-hud-state>Picture</span>
+        </p>
+        <div class="bf__screen" data-bf-screen>
+          {projects.map((p, i) => (
+            <img
+              class="bf__img"
+              src={p.screen}
+              alt={p.screenAlt}
+              loading="lazy"
+              decoding="async"
+              data-current={i === 0 ? '' : undefined}
+            />
+          ))}
+          <canvas class="bf__canvas" aria-hidden="true"></canvas>
+          {projects.map((p, i) => p.callouts[0] && (
+            <span
+              class="bf__lock"
+              aria-hidden="true"
+              style={`--x: ${p.callouts[0].x}%; --y: ${p.callouts[0].y}%`}
+              data-current={i === 0 ? '' : undefined}
+              data-label={p.callouts[0].label}
+            >
+              <svg viewBox="-24 -24 48 48" focusable="false">
+                <circle r="15" />
+                <path d="M0-23v8M0 15v8M-23 0h8M15 0h8" />
+              </svg>
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <div class="bf__side">
+      <div class="bf__targets" role="tablist" aria-label="Targets">
+        {projects.map((p, i) => (
+          <button
+            class="bf__target"
+            type="button"
+            role="tab"
+            id={`bf-tab-${p.slug}`}
+            aria-controls={`bf-panel-${p.slug}`}
+            aria-selected={i === 0 ? 'true' : 'false'}
+            tabindex={i === 0 ? 0 : -1}
+          >
+            <svg class="bf__target-mark" viewBox="-12 -12 24 24" aria-hidden="true" focusable="false">
+              <circle r="7" />
+              <path d="M0-11v4M0 7v4M-11 0h4M7 0h4" />
+            </svg>
+            <span class="bf__target-name">{p.name}</span>
+            <span class="bf__target-year">{p.year}</span>
+          </button>
+        ))}
+      </div>
+
+      {projects.map((p, i) => (
+        <div
+          class="bf__brief"
+          role="tabpanel"
+          id={`bf-panel-${p.slug}`}
+          aria-labelledby={`bf-tab-${p.slug}`}
+          data-current={i === 0 ? '' : undefined}
+        >
+          <h3 class="bf__name">{p.name}</h3>
+          <dl class="bf__facts">
+            <div>
+              <dt>Objective</dt>
+              <dd>{p.summary}</dd>
+            </div>
+            <div>
+              <dt>Briefing</dt>
+              <dd>{p.story}</dd>
+            </div>
+          </dl>
+
+          <p class="bf__label" id={`bf-squadron-${p.slug}`}>Squadron</p>
+          <ol class="bf__squadron" aria-labelledby={`bf-squadron-${p.slug}`}>
+            {p.credits.map((c, k) => {
+              const href = crewHref(c.name);
+              return (
+                <li>
+                  <span class="bf__call">Red {k + 1}</span>
+                  {href ? (
+                    <a class="bf__pilot" href={href} data-crew-link>{c.name}</a>
+                  ) : (
+                    <span class="bf__pilot">{c.name}</span>
+                  )}
+                  <span class="bf__part">{c.part}</span>
+                </li>
+              );
+            })}
+          </ol>
+
+          <a class="bf__launch" href={p.url} target="_blank" rel="noopener">
+            <span class="bf__launch-main">Launch {p.name}</span>
+            <span class="bf__launch-sub">{host(p.url)}</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 17 17 7M9 7h8v8" /></svg>
+          </a>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
+
+<style>
+  .bf {
+    --yellow: #feda4a;
+    --yellow-dim: rgba(254, 218, 74, 0.74);
+    --vec: #ffa23a; /* the display's vector light */
+    --vec-dim: rgba(255, 162, 58, 0.7);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+    container: bf / inline-size;
+    box-sizing: border-box;
+    max-width: 76rem;
+    margin: 0 auto;
+    padding: 0 clamp(1rem, 4vw, 2.5rem);
+  }
+
+  .bf__room {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(2rem, 5vh, 2.75rem);
+  }
+
+  @container bf (min-width: 60rem) {
+    .bf__room {
+      grid-template-columns: minmax(0, 1fr) 21rem;
+      align-items: start;
+      column-gap: clamp(2rem, 4cqi, 3.5rem);
+    }
+
+    .bf__display {
+      position: sticky;
+      top: calc(var(--nav-h, 4rem) + 1.5rem);
+    }
+  }
+
+  /* ---------- The display ---------- */
+
+  .bf__display { position: relative; }
+
+  /* The display's light on the table in front of it */
+  .bf__display::after {
+    content: '';
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    bottom: -2.5rem;
+    height: 3rem;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(255, 162, 58, 0.16), transparent);
+    filter: blur(8px);
+    pointer-events: none;
+  }
+
+  .bf__bezel {
+    position: relative;
+    padding: 0 clamp(0.45rem, 1.2cqi, 0.8rem) clamp(0.45rem, 1.2cqi, 0.8rem);
+    border-radius: 0.8rem;
+    background: linear-gradient(#1c2027, #0b0d11 70%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.09),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+      0 2.2rem 3.5rem -1.8rem rgba(0, 0, 0, 0.95);
+  }
+
+  .bf__hud {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 0;
+    padding: 0.6rem 0.35rem 0.55rem;
+    color: var(--vec);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .bf__hud > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .bf__hud-state { flex: none; max-width: 50%; color: var(--vec-dim); }
+
+  .bf__screen {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    border-radius: 0.4rem;
+    background: #020304;
+  }
+
+  /* The tube's curve darkening its corners */
+  .bf__screen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    border-radius: inherit;
+    box-shadow: inset 0 0 2.2rem rgba(0, 0, 0, 0.65);
+    pointer-events: none;
+  }
+
+  .bf__img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    visibility: hidden;
+  }
+
+  .bf__img[data-current] { visibility: visible; }
+
+  .bf__canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  /* Locked on: a reticle over the project's main feature */
+  .bf__lock {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    z-index: 3;
+    display: none;
+    width: clamp(2.2rem, 6cqi, 3.4rem);
+    aspect-ratio: 1;
+    translate: -50% -50%;
+    color: var(--vec);
+    pointer-events: none;
+  }
+
+  .bf__lock[data-current] { display: block; }
+  .bf.is-tracing .bf__lock { opacity: 0; }
+
+  .bf__lock svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
+  }
+
+  /* Standing by: nothing on the tube until the first trace runs */
+  .bf.is-armed:not(.is-played) .bf__img[data-current] { clip-path: inset(0 0 100% 0); }
+  .bf.is-armed:not(.is-played) .bf__lock { opacity: 0; }
+
+  /* ---------- Targets ---------- */
+
+  .bf__targets {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  @container bf (min-width: 60rem) {
+    .bf__targets {
+      grid-template-columns: 1fr;
+      gap: 0;
+      border-top: 1px solid rgba(255, 162, 58, 0.18);
+    }
+  }
+
+  .bf__target {
+    display: grid;
+    grid-template-columns: 1.4rem 1fr auto;
+    align-items: center;
+    gap: 0.7rem;
+    min-height: 3rem;
+    padding: 0.55rem 0.8rem;
+    border: 1px solid rgba(255, 162, 58, 0.22);
+    border-radius: 0.3rem;
+    background: transparent;
+    color: var(--yellow-dim);
+    font-family: 'News Cycle', system-ui, sans-serif;
+    text-align: left;
+    cursor: pointer;
+    transition: color 0.2s, background-color 0.2s, border-color 0.2s;
+  }
+
+  @container bf (min-width: 60rem) {
+    .bf__target {
+      min-height: 3.4rem;
+      padding: 0.6rem 0.6rem;
+      border-width: 0 0 1px;
+      border-radius: 0;
+      border-color: rgba(255, 162, 58, 0.18);
+    }
+  }
+
+  .bf__target:hover { color: var(--yellow); background: rgba(255, 162, 58, 0.05); }
+
+  .bf__target[aria-selected='true'] {
+    color: var(--vec);
+    background: rgba(255, 162, 58, 0.09);
+    cursor: default;
+  }
+
+  .bf__target:focus-visible { outline-offset: -2px; }
+
+  .bf__target-mark {
+    width: 1.3rem;
+    height: 1.3rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    opacity: 0.55;
+    transition: transform 0.5s var(--ease-out), opacity 0.2s;
+  }
+
+  .bf__target[aria-selected='true'] .bf__target-mark {
+    opacity: 1;
+    transform: rotate(45deg);
+  }
+
+  .bf__target-name {
+    font-family: 'Anton', sans-serif;
+    font-size: 1.12rem;
+    line-height: 1.1;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .bf__target-year {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- The brief ---------- */
+
+  .bf__brief { margin-top: clamp(1.75rem, 4vh, 2.5rem); }
+
+  .bf.is-live .bf__brief:not([data-current]) { display: none; }
+  .bf:not(.is-live) .bf__brief + .bf__brief { margin-top: 3.5rem; }
+
+  .bf__name {
+    margin: 0;
+    color: var(--yellow);
+    font-family: 'Anton', sans-serif;
+    font-weight: 400;
+    font-size: clamp(2.2rem, 5cqi, 2.9rem);
+    line-height: 1;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .bf__facts {
+    display: grid;
+    gap: 1.1rem;
+    margin: 1.4rem 0 0;
+  }
+
+  .bf__facts dt,
+  .bf__label {
+    margin: 0 0 0.35rem;
+    color: var(--vec);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+
+  .bf__facts dd {
+    max-width: 60ch;
+    margin: 0;
+    color: var(--yellow);
+    font-size: 1rem;
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
+
+  .bf__facts div + div dd { color: var(--yellow-dim); }
+
+  .bf__label { margin-top: 1.6rem; }
+
+  .bf__squadron {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid rgba(254, 218, 74, 0.14);
+  }
+
+  .bf__squadron li {
+    display: grid;
+    grid-template-columns: 3.4rem 1fr auto;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.62rem 0;
+    border-bottom: 1px solid rgba(254, 218, 74, 0.14);
+  }
+
+  .bf__call {
+    color: var(--vec-dim);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .bf__pilot {
+    color: var(--yellow);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  a.bf__pilot {
+    text-decoration: underline;
+    text-decoration-color: rgba(254, 218, 74, 0.35);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.28em;
+    transition: text-decoration-color 0.2s;
+  }
+
+  a.bf__pilot:hover { text-decoration-color: var(--yellow); }
+
+  .bf__part {
+    color: var(--yellow-dim);
+    font-size: 0.86rem;
+    text-align: right;
+  }
+
+  .bf__launch {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    column-gap: 1rem;
+    row-gap: 0.1rem;
+    margin-top: 1.75rem;
+    padding: 0.95rem 1.1rem 0.95rem 1.25rem;
+    border-radius: 3px;
+    background: var(--vec);
+    color: #120800;
+    text-decoration: none;
+    transition:
+      transform 0.35s var(--ease-out),
+      box-shadow 0.35s var(--ease-out),
+      background-color 0.2s;
+  }
+
+  .bf__launch:hover {
+    background: #ffb45c;
+    transform: translateY(-2px);
+    box-shadow: 0 0.8rem 1.4rem -0.6rem rgba(0, 0, 0, 0.9);
+  }
+
+  .bf__launch-main {
+    font-family: 'Anton', sans-serif;
+    font-size: 1.18rem;
+    line-height: 1.1;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .bf__launch-sub {
+    grid-row: 2;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
+  .bf__launch svg {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    width: 1.5rem;
+    height: 1.5rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.35s var(--ease-out);
+  }
+
+  .bf__launch:hover svg { transform: translate(2px, -2px); }
+  .bf__launch:focus-visible { outline-offset: 5px; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .bf.is-locked .bf__lock[data-current] svg { animation: bf-lock 0.7s var(--ease-out); }
+  }
+
+  @keyframes bf-lock {
+    from { transform: scale(2.4) rotate(-45deg); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+</style>
+
+<script>
+  /* Edge-traced plans, cached per picture and size */
+  const plansCache = new Map<string, { sharp: HTMLCanvasElement; glow: HTMLCanvasElement } | null>();
+
+  async function tracePlans(img: HTMLImageElement, w: number, h: number) {
+    const key = `${img.currentSrc || img.src}@${w}x${h}`;
+    if (plansCache.has(key)) return plansCache.get(key) ?? null;
+    // Wait for the picture itself; decode() can stall on a lazy or animated
+    // image, so this listens for the load and gives up after a moment
+    if (!img.complete || !img.naturalWidth) {
+      img.loading = 'eager';
+      await new Promise<void>((resolve) => {
+        const done = () => resolve();
+        img.addEventListener('load', done, { once: true });
+        img.addEventListener('error', done, { once: true });
+        window.setTimeout(done, 2500);
+      });
+    }
+    if (!img.naturalWidth) return null;
+
+    const src = document.createElement('canvas');
+    src.width = w;
+    src.height = h;
+    const sctx = src.getContext('2d', { willReadFrequently: true });
+    if (!sctx) return null;
+    // Fit the picture the way the page does (object-fit: contain)
+    const ir = img.naturalWidth / img.naturalHeight;
+    let dw = w;
+    let dh = h;
+    if (ir > w / h) dh = w / ir;
+    else dw = h * ir;
+    sctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+
+    let px: Uint8ClampedArray;
+    try {
+      px = sctx.getImageData(0, 0, w, h).data;
+    } catch {
+      plansCache.set(key, null);
+      return null;
+    }
+
+    const lum = new Float32Array(w * h);
+    for (let i = 0, j = 0; i < lum.length; i++, j += 4) {
+      lum[i] = ((0.299 * px[j] + 0.587 * px[j + 1] + 0.114 * px[j + 2]) / 255) * (px[j + 3] / 255);
+    }
+
+    const out = sctx.createImageData(w, h);
+    const o = out.data;
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const i = y * w + x;
+        const a = lum[i - w - 1], b = lum[i - w], c = lum[i - w + 1];
+        const d = lum[i - 1], f = lum[i + 1];
+        const g = lum[i + w - 1], hh = lum[i + w], k = lum[i + w + 1];
+        const gx = c + 2 * f + k - a - 2 * d - g;
+        const gy = g + 2 * hh + k - a - 2 * b - c;
+        const m = Math.sqrt(gx * gx + gy * gy);
+        if (m < 0.1) continue;
+        const j = i * 4;
+        o[j] = 255;
+        o[j + 1] = 176;
+        o[j + 2] = 84;
+        o[j + 3] = Math.min(255, (m - 0.1) * 520);
+      }
+    }
+
+    const sharp = document.createElement('canvas');
+    sharp.width = w;
+    sharp.height = h;
+    sharp.getContext('2d')?.putImageData(out, 0, 0);
+
+    // The phosphor bloom around each line, baked once
+    const glow = document.createElement('canvas');
+    glow.width = w;
+    glow.height = h;
+    const gctx = glow.getContext('2d');
+    if (gctx) {
+      gctx.filter = `blur(${Math.max(2, w / 500)}px)`;
+      gctx.drawImage(sharp, 0, 0);
+      gctx.filter = 'none';
+    }
+
+    const plans = { sharp, glow };
+    plansCache.set(key, plans);
+    return plans;
+  }
+
+  function initBriefing() {
+    const bf = document.querySelector<HTMLElement>('[data-bf]');
+    if (!bf || bf.dataset.ready === 'true') return;
+    bf.dataset.ready = 'true';
+    bf.classList.add('is-live');
+
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const screen = bf.querySelector<HTMLElement>('[data-bf-screen]') as HTMLElement;
+    const canvas = bf.querySelector<HTMLCanvasElement>('.bf__canvas') as HTMLCanvasElement;
+    const ctx = canvas.getContext('2d');
+    const imgs = Array.from(screen.querySelectorAll<HTMLImageElement>('.bf__img'));
+    const locks = Array.from(screen.querySelectorAll<HTMLElement>('.bf__lock'));
+    const tabs = Array.from(bf.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    const panels = tabs.map((t) => document.getElementById(t.getAttribute('aria-controls') as string) as HTMLElement);
+    const hudN = bf.querySelector('[data-hud-n]') as HTMLElement;
+    const hudName = bf.querySelector('[data-hud-name]') as HTMLElement;
+    const hudState = bf.querySelector('[data-hud-state]') as HTMLElement;
+
+    let at = 0;
+    let run = 0;
+    let seen = false;
+
+    const size = () => {
+      const r = screen.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = Math.max(1, Math.round(r.width * dpr));
+      const h = Math.max(1, Math.round(r.height * dpr));
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+      return { w, h };
+    };
+
+    const drawGrid = (w: number, h: number) => {
+      if (!ctx) return;
+      const grid = Math.max(18, Math.round(w / 32));
+      ctx.strokeStyle = 'rgba(75, 213, 238, 0.13)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let x = grid; x < w; x += grid) {
+        ctx.moveTo(x + 0.5, 0);
+        ctx.lineTo(x + 0.5, h);
+      }
+      for (let y = grid; y < h; y += grid) {
+        ctx.moveTo(0, y + 0.5);
+        ctx.lineTo(w, y + 0.5);
+      }
+      ctx.stroke();
+    };
+
+    const settle = () => {
+      bf.classList.remove('is-tracing');
+      bf.classList.add('is-locked', 'is-played');
+      imgs[at].style.clipPath = '';
+      ctx?.clearRect(0, 0, canvas.width, canvas.height);
+      const lock = locks.find((l) => l.hasAttribute('data-current'));
+      hudState.textContent = lock?.dataset.label ? `Locked on ${lock.dataset.label}` : 'Picture';
+    };
+
+    const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+    const play = async () => {
+      const token = ++run;
+      const img = imgs[at];
+      bf.classList.remove('is-locked');
+      if (still || !ctx) return settle();
+
+      const { w, h } = size();
+      // Work on at most 1600 pixels across; the canvas scales it up
+      const scale = Math.min(1, 1600 / w);
+      bf.classList.add('is-tracing');
+      img.style.clipPath = 'inset(0 0 100% 0)';
+      hudState.textContent = 'Tracing plans';
+      const plans = await tracePlans(img, Math.round(w * scale), Math.round(h * scale));
+      if (token !== run) return;
+      if (!plans) return settle();
+
+      const TRACE = 1000;
+      const HOLD = 220;
+      const SCAN = 820;
+      const t0 = performance.now();
+
+      const frame = (now: number) => {
+        if (token !== run) return;
+        const t = now - t0;
+        const trace = ease(Math.min(1, t / TRACE));
+        const scan = t < TRACE + HOLD ? 0 : ease(Math.min(1, (t - TRACE - HOLD) / SCAN));
+        const tx = trace * w;
+        const sy = scan * h;
+
+        ctx.clearRect(0, 0, w, h);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, sy, w, h - sy);
+        ctx.clip();
+
+        drawGrid(w, h);
+
+        // The plans, drawn in as far as the beam has reached
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, tx, h);
+        ctx.clip();
+        ctx.globalAlpha = 0.85;
+        ctx.drawImage(plans.glow, 0, 0, w, h);
+        ctx.globalAlpha = 1;
+        ctx.drawImage(plans.sharp, 0, 0, w, h);
+        ctx.restore();
+
+        // The beam drawing them
+        if (trace < 1) {
+          const beam = ctx.createLinearGradient(tx - w * 0.06, 0, tx, 0);
+          beam.addColorStop(0, 'rgba(255, 162, 58, 0)');
+          beam.addColorStop(1, 'rgba(255, 190, 110, 0.22)');
+          ctx.fillStyle = beam;
+          ctx.fillRect(tx - w * 0.06, 0, w * 0.06, h);
+          ctx.fillStyle = 'rgba(255, 226, 180, 0.95)';
+          ctx.fillRect(tx - 1, 0, 2, h);
+        }
+        ctx.restore();
+
+        // The scan line resolving the picture
+        if (scan > 0 && scan < 1) {
+          img.style.clipPath = `inset(0 0 ${(100 - scan * 100).toFixed(2)}% 0)`;
+          const band = ctx.createLinearGradient(0, sy - h * 0.08, 0, sy);
+          band.addColorStop(0, 'rgba(255, 162, 58, 0)');
+          band.addColorStop(1, 'rgba(255, 190, 110, 0.28)');
+          ctx.fillStyle = band;
+          ctx.fillRect(0, sy - h * 0.08, w, h * 0.08);
+          ctx.fillStyle = 'rgba(255, 226, 180, 0.95)';
+          ctx.fillRect(0, sy - 1, w, 2);
+          hudState.textContent = 'Resolving';
+        }
+
+        if (scan >= 1) return settle();
+        requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+    };
+
+    const select = (i: number) => {
+      if (i === at) return;
+      tabs.forEach((t, k) => {
+        t.setAttribute('aria-selected', String(k === i));
+        t.tabIndex = k === i ? 0 : -1;
+      });
+      panels.forEach((p, k) => p.toggleAttribute('data-current', k === i));
+      imgs[at].style.clipPath = '';
+      imgs.forEach((im, k) => im.toggleAttribute('data-current', k === i));
+      locks.forEach((l, k) => l.toggleAttribute('data-current', k === i));
+      at = i;
+      hudN.textContent = String(i + 1);
+      hudName.textContent = tabs[i].querySelector('.bf__target-name')?.textContent ?? '';
+      play();
+    };
+
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => select(i));
+      t.addEventListener('keydown', (e) => {
+        const last = tabs.length - 1;
+        const to =
+          e.key === 'ArrowDown' || e.key === 'ArrowRight' ? (i === last ? 0 : i + 1)
+          : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? (i === 0 ? last : i - 1)
+          : e.key === 'Home' ? 0
+          : e.key === 'End' ? last
+          : -1;
+        if (to < 0) return;
+        e.preventDefault();
+        tabs[to].focus();
+        select(to);
+      });
+    });
+
+    // The first trace runs when the display comes into view
+    if ('IntersectionObserver' in window && !still && ctx) {
+      bf.classList.add('is-armed');
+      hudState.textContent = 'Standing by';
+      // Idle, the tube shows its grid; redrawn whenever it changes size
+      new ResizeObserver(() => {
+        if (bf.classList.contains('is-played') || bf.classList.contains('is-tracing')) return;
+        const { w, h } = size();
+        ctx.clearRect(0, 0, w, h);
+        drawGrid(w, h);
+      }).observe(screen);
+      const io = new IntersectionObserver(
+        (entries) => {
+          if (seen || !entries.some((en) => en.isIntersecting)) return;
+          seen = true;
+          io.disconnect();
+          play();
+        },
+        { threshold: 0.45 },
+      );
+      io.observe(screen);
+    } else {
+      settle();
+    }
+
+    // A resize mid-trace would stretch it; finish instead
+    new ResizeObserver(() => {
+      if (!bf.classList.contains('is-tracing')) return;
+      run++;
+      settle();
+    }).observe(screen);
+  }
+
+  initBriefing();
+  document.addEventListener('astro:page-load', initBriefing);
+</script>
