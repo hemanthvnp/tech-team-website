@@ -35,6 +35,26 @@ const {
 ---
 
 <section class="sw" id="tech-team-hero" aria-label="Tech Team intro" data-intro-root>
+  <script is:inline>
+    // The sequence plays once a visit. Coming back to this page from
+    // elsewhere on the site (/legacy, the back button) lands on the resting
+    // state instead of replaying it; a reload still replays, as does a new
+    // tab. Decided here, before paint, so the title and the navbar are
+    // already where they belong rather than settling into place.
+    (() => {
+      const root = document.currentScript.parentElement;
+      let seen = false;
+      try {
+        seen = sessionStorage.getItem('tt:intro') === 'done';
+      } catch {}
+      const nav = performance.getEntriesByType('navigation')[0];
+      if (!seen || (nav && nav.type === 'reload')) return;
+      root.dataset.introSeen = 'true'; // read by the sequence control below
+      root.classList.add('is-done');
+      document.documentElement.dataset.intro = 'done';
+    })();
+  </script>
+
   <canvas class="sw__stars" aria-hidden="true"></canvas>
 
   <!-- Draws nothing. Its animation starts on the beat the title begins to
@@ -787,6 +807,10 @@ const {
       root.classList.add('is-done');
       page.dataset.intro = 'done';
       unlock();
+      // Seen for this tab: the next visit to this page skips to here
+      try {
+        sessionStorage.setItem('tt:intro', 'done');
+      } catch {}
     };
 
     const play = () => {
@@ -862,8 +886,8 @@ const {
       });
     }
 
-    // A reload always restarts the intro, so it should start at the top
-    // rather than wherever the page was left.
+    // Whenever the sequence does run it starts at the top, rather than
+    // wherever the page was left.
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
     // A link straight to a section (#crew) lands on that section: the visitor
@@ -874,7 +898,7 @@ const {
       deepLink = !!target && !root.contains(target);
     } catch {}
 
-    if (reduced || deepLink) {
+    if (reduced || deepLink || root.dataset.introSeen === 'true') {
       finish();
     } else {
       play();
