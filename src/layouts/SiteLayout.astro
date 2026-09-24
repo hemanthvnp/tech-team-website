@@ -4,6 +4,7 @@
 // it: every <Section label="…"> on the page becomes a link, in page order.
 import SiteNav from '../components/SiteNav.astro';
 import '../styles/global.css';
+import { ENABLE_INTRO_ANIMATION, ENABLE_NAVBAR } from '../config';
 
 interface Props {
   title?: string;
@@ -35,7 +36,7 @@ const sections = [...body.matchAll(/<section\b[^>]*\sdata-nav-label="([^"]*)"[^>
 // A page that opens on the intro starts with the navbar already out of frame,
 // so it never shows and then slides away on load. The hero takes over the
 // attribute once its script runs.
-const hasIntro = /\sdata-intro-root[\s=>]/.test(body);
+const hasIntro = ENABLE_INTRO_ANIMATION && /\sdata-intro-root[\s=>]/.test(body);
 ---
 
 <html lang="en" data-intro={hasIntro ? 'playing' : undefined}>
@@ -55,7 +56,7 @@ const hasIntro = /\sdata-intro-root[\s=>]/.test(body);
     <title>{title}</title>
   </head>
   <body>
-    <SiteNav sections={sections} links={links} brandHref={brandHref} />
+    {ENABLE_NAVBAR && <SiteNav sections={sections} links={links} brandHref={brandHref} />}
     <main id="main">
       <Fragment set:html={body} />
     </main>

@@ -5,6 +5,8 @@
 //   2. TECH TEAM rides up the same plane behind the story, then flattens
 //      square to the camera at screen centre and shifts colour
 // Pure CSS animation + a canvas starfield. No dependencies.
+// The whole sequence is switched by ENABLE_INTRO_ANIMATION in src/config.ts.
+import { ENABLE_INTRO_ANIMATION } from '../config';
 
 interface Props {
   titleTop?: string;
@@ -29,12 +31,21 @@ const {
     'Pursued by sinister deadlines, the GT-Planar squad races home aboard main, custodian of the commits that can save their release and restore freedom to the galaxy....',
   ],
   names = 'Prem Dharshan · Mithun Karthik · Ajay H · Dinesh · Jithendra · Hemanth · Nithiish',
-  tagline = '2026',
+  tagline = 'CSA Presents',
   audioSrc,
 } = Astro.props;
+
+// Off: render the landed state straight away and drop the Skip/Replay/speed HUD
+const introOn = ENABLE_INTRO_ANIMATION;
 ---
 
-<section class="sw" id="tech-team-hero" aria-label="Tech Team intro" data-intro-root>
+<section
+  class:list={['sw', { 'is-done': !introOn }]}
+  id="tech-team-hero"
+  aria-label="Tech Team intro"
+  data-intro-root
+  data-intro-enabled={introOn ? 'true' : 'false'}
+>
   <script is:inline>
     // The sequence plays once a visit. Coming back to this page from
     // elsewhere on the site (/legacy, the back button) lands on the resting
@@ -87,7 +98,7 @@ const {
 
   <!-- Top right. Skip and Replay never co-exist, so they share the slot:
        Skip while the sequence runs, Replay once it has landed. -->
-  <div class="sw__hud">
+  {introOn && <div class="sw__hud">
     <button class="sw__btn" type="button" data-action="skip">Skip</button>
     <button class="sw__btn" type="button" data-action="replay">Replay</button>
 
@@ -107,7 +118,7 @@ const {
         aria-label="Playback speed"
       />
     </label>
-  </div>
+  </div>}
 
   {audioSrc && (
     <div class="sw__controls">
@@ -424,7 +435,9 @@ const {
     position: absolute;
     left: 0;
     right: 0;
-    bottom: 12vh;
+    /* Directly above the landed title: half its two lines (22vmin), plus the
+       -7vh rest offset, plus a gap */
+    bottom: calc(50% + 22vmin + 7vh + 1rem);
     z-index: 3;
     padding: 0 1rem;
     text-align: center;
@@ -898,7 +911,7 @@ const {
       deepLink = !!target && !root.contains(target);
     } catch {}
 
-    if (reduced || deepLink || root.dataset.introSeen === 'true') {
+    if (root.dataset.introEnabled === 'false' || reduced || deepLink || root.dataset.introSeen === 'true') {
       finish();
     } else {
       play();
